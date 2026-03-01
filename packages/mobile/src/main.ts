@@ -85,8 +85,8 @@ function handleSwing(swing: SwingDetection): void {
     swingIndicator.classList.remove('swing-detected');
   }, 200);
   
-  // Send to server
-  wsManager.sendSwing(swing.speed, swing.angle, swing.spin);
+  // Send to server with 3D orientation
+  wsManager.sendSwing(swing.speed, swing.angle, swing.spin, swing.yaw, swing.pitch, swing.roll);
 }
 
 // ========================================

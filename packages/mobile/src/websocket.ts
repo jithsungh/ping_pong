@@ -82,7 +82,7 @@ export class WebSocketManager {
   /**
    * Send swing data to server
    */
-  sendSwing(speed: number, angle: number, spin: number): void {
+  sendSwing(speed: number, angle: number, spin: number, yaw?: number, pitch?: number, roll?: number): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.warn('Cannot send swing: not connected');
       return;
@@ -94,6 +94,9 @@ export class WebSocketManager {
       angle,
       spin,
       timestamp: performance.now(),
+      yaw,
+      pitch,
+      roll
     };
     
     this.ws.send(JSON.stringify(message));

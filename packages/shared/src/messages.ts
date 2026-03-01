@@ -13,9 +13,13 @@ export interface JoinMessage {
 export interface SwingMessage {
   type: 'swing';
   speed: number;      // 0-1 normalized swing speed
-  angle: number;      // -45 to 45 degrees, horizontal direction
+  angle: number;      // -45 to 45 degrees, horizontal direction (legacy)
   spin: number;       // -1 to 1, topspin/backspin
   timestamp: number;  // Performance.now() on client
+  // 3D orientation at hit time
+  yaw?: number;       // Left-right aim (degrees)
+  pitch?: number;     // Up-down angle (degrees)
+  roll?: number;      // Paddle face tilt (degrees)
 }
 
 /** Server -> Client: Full game state update */
@@ -104,4 +108,8 @@ export interface SwingDetection {
   speed: number;
   angle: number;
   spin: number;
+  // 3D orientation at hit time
+  yaw: number;       // Left-right aim (degrees)
+  pitch: number;     // Up-down angle (degrees)
+  roll: number;      // Paddle face tilt (degrees)
 }

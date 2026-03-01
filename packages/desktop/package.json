@@ -9,7 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@paddlelink/shared": "*"
+    "@paddlelink/shared": "*",
+    "@types/three": "^0.183.1",
+    "three": "^0.183.2"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

@@ -183,11 +183,22 @@ export class SensorManager {
     // Positive beta = phone tilting forward = topspin
     const spin = Math.max(-1, Math.min(1, this.currentRotation.beta / 90));
     
+    // Capture 3D orientation at hit time
+    // yaw: left-right aim (from alpha, compass heading)
+    // pitch: up-down angle (from beta, phone tilt forward/back)
+    // roll: paddle face angle (from gamma, phone tilt left/right)
+    const yaw = this.currentRotation.gamma; // -90 to 90
+    const pitch = this.currentRotation.beta; // -180 to 180, but we use -45 to 45 practical range
+    const roll = this.currentRotation.alpha; // 0-360 compass
+    
     const swingData: SwingDetection = {
       detected: true,
       speed,
       angle,
       spin,
+      yaw,
+      pitch: Math.max(-45, Math.min(45, pitch)), // Clamp to useful range
+      roll
     };
     
     this.onSwingCallback?.(swingData);

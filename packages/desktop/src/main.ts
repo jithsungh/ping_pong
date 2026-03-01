@@ -1,6 +1,6 @@
-import { Game } from './game';
+import { Game3D } from './game3d';
 import { WebSocketServer } from './websocket';
-import type { GamePhase, Score } from '@paddlelink/shared';
+import type { GamePhase, Score, SwingMessage } from '@paddlelink/shared';
 
 // DOM Elements
 const startScreen = document.getElementById('start-screen')!;
@@ -18,8 +18,8 @@ const finalScoreEl = document.getElementById('final-score')!;
 const rematchBtn = document.getElementById('rematch-btn')!;
 const gameCanvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 
-// Game instance
-let game: Game | null = null;
+// Game instance (3D)
+let game: Game3D | null = null;
 const wsServer = new WebSocketServer();
 
 // ========================================
@@ -110,8 +110,8 @@ function handleConnectionStateChange(state: string): void {
 // ========================================
 
 function init(): void {
-  // Create game
-  game = new Game(gameCanvas);
+  // Create 3D game
+  game = new Game3D(gameCanvas);
   game.setOnScoreChange(handleScoreChange);
   game.setOnPhaseChange(handlePhaseChange);
   game.setOnGameOver(handleGameOver);
@@ -120,7 +120,8 @@ function init(): void {
   wsServer.onStateChange(handleConnectionStateChange);
   wsServer.onSwing((swing) => {
     console.log('Swing received:', swing);
-    game?.handlePlayerSwing(swing.speed, swing.angle, swing.spin);
+    // Pass full swing message with 3D orientation
+    game?.handlePlayerSwing(swing);
   });
   
   // Connect to server
@@ -140,17 +141,25 @@ function init(): void {
   // Keyboard controls for testing (without phone)
   document.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
-      // Simulate swing
-      const speed = 0.5 + Math.random() * 0.3;
-      const angle = (Math.random() - 0.5) * 30;
-      game?.handlePlayerSwing(speed, angle, 0);
+      // Simulate swing with 3D orientation
+      const mockSwing: SwingMessage = {
+        type: 'swing',
+        speed: 0.5 + Math.random() * 0.3,
+        angle: (Math.random() - 0.5) * 30,
+        spin: 0,
+        timestamp: performance.now(),
+        yaw: (Math.random() - 0.5) * 30,
+        pitch: Math.random() * 15,
+        roll: 0
+      };
+      game?.handlePlayerSwing(mockSwing);
     }
   });
   
   // Show start screen
   showStartScreen();
   
-  console.log('PaddleLink Desktop initialized');
+  console.log('PaddleLink 3D Desktop initialized');
   console.log('Room code:', roomCode);
   console.log('Press SPACE to simulate swing (for testing)');
 }
