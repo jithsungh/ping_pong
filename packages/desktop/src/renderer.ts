@@ -216,31 +216,47 @@ export class Renderer {
     this.slashStartTime = performance.now();
     this.slashPoints = [];
     
-    // Create slash trail points based on angle
-    const centerX = this.tableX + this.tableWidth / 2;
-    const centerY = this.tableY + this.tableHeight * 0.85; // Near player zone
+    // Only show slash for meaningful swings (speed > 0.3)
+    if (speed < 0.3) {
+      this.slashActive = false;
+      return;
+    }
+    
+    // Scale slash based on swing intensity
+    const intensity = Math.min(1, speed / 0.8); // Normalize speed to 0-1
+    
+    // Randomize starting position slightly for variety
+    const randomOffsetX = (Math.random() - 0.5) * this.tableWidth * 0.3;
+    const centerX = this.tableX + this.tableWidth / 2 + randomOffsetX;
+    const centerY = this.tableY + this.tableHeight * 0.8;
+    
     // Scale slash length with swing speed
-    const baseLength = this.tableWidth * 0.5;
-    const slashLength = baseLength + (speed / 30) * this.tableWidth * 0.2;
-    const angleRad = ((angle - 90) * Math.PI) / 180; // Convert to radians, adjust for swing angle
+    const baseLength = this.tableWidth * 0.3;
+    const slashLength = baseLength + intensity * this.tableWidth * 0.4;
     
-    // Calculate slash direction with some randomness
+    // Map the swing angle to slash direction
+    // angle: -45 to 45 degrees from phone -> slash direction
+    const angleRad = (angle * Math.PI) / 180;
+    
+    // Calculate slash endpoints based on actual swing direction
     const startX = centerX - Math.cos(angleRad) * slashLength / 2;
-    const startY = centerY - Math.sin(angleRad) * slashLength / 2 * 0.5;
+    const startY = centerY + Math.sin(angleRad) * slashLength / 4;
     const endX = centerX + Math.cos(angleRad) * slashLength / 2;
-    const endY = centerY + Math.sin(angleRad) * slashLength / 2 * 0.5;
+    const endY = centerY - Math.sin(angleRad) * slashLength / 4;
     
-    // Create blade points with curve
-    const numPoints = 12;
+    // Create blade points with dynamic curve based on speed
+    const numPoints = 8 + Math.floor(intensity * 6);
+    const arcHeight = 20 + intensity * 40;
+    
     for (let i = 0; i < numPoints; i++) {
       const t = i / (numPoints - 1);
       const x = startX + (endX - startX) * t;
-      const y = startY + (endY - startY) * t - Math.sin(t * Math.PI) * 40; // Arc curve
+      const y = startY + (endY - startY) * t - Math.sin(t * Math.PI) * arcHeight;
       this.slashPoints.push({
         x,
         y,
-        alpha: 1,
-        time: this.slashStartTime + i * 15 // Stagger appearance
+        alpha: intensity,
+        time: this.slashStartTime + i * 10
       });
     }
   }
