@@ -1,6 +1,0 @@
-{
-  "buildCommand": "cd ../.. && npm run build -w @paddlelink/shared && npm run build -w @paddlelink/desktop",
-  "outputDirectory": "dist",
-  "installCommand": "cd ../.. && npm install",
-  "framework": "vite"
-}

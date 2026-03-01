@@ -113,64 +113,67 @@ iOS requires HTTPS for sensor access. For local development:
 - Close other apps using network
 - Try moving closer to router
 
-## Deployment
+## Deployment (Railway)
 
-### Architecture
+Deploy all 3 services to Railway for free.
 
-Vercel doesn't support persistent WebSocket connections, so we deploy to multiple services:
+### Quick Setup
 
-| Service | Platform | Why |
-|---------|----------|-----|
-| Mobile PWA | Vercel | Static site |
-| Desktop Game | Vercel | Static site |
-| WebSocket Server | Railway/Render | Persistent connections |
+1. Go to [railway.app](https://railway.app) → Sign up with GitHub
+2. Create new **Project**
+3. Add **3 services** from the same GitHub repo
 
-### Step 1: Deploy WebSocket Server (Railway)
+### Service 1: WebSocket Server
 
-1. Create account at [railway.app](https://railway.app)
-2. Create new project → Deploy from GitHub repo
-3. Set root directory to `/` (monorepo root)
-4. Railway will auto-detect the Dockerfile at `packages/server/Dockerfile`
-5. Copy the deployed URL (e.g., `your-app.railway.app`)
+1. **New Service** → **GitHub Repo** → Select `ping_pong`
+2. **Settings**:
+   - **Root Directory**: `/` (leave empty)
+   - **Dockerfile Path**: `packages/server/Dockerfile`
+3. Deploy and copy the URL (e.g., `paddlelink-server-production.up.railway.app`)
 
-### Step 2: Deploy Frontends (Vercel)
+### Service 2: Desktop Game
 
-**Mobile PWA:**
-```bash
-cd packages/mobile
-vercel --prod
-```
+1. **New Service** → **GitHub Repo** → Select `ping_pong`
+2. **Settings**:
+   - **Root Directory**: `/`
+   - **Dockerfile Path**: `packages/desktop/Dockerfile`
+3. **Variables** (add before deploy):
+   ```
+   VITE_WS_URL=wss://paddlelink-server-production.up.railway.app
+   ```
+4. Deploy
 
-When prompted, set environment variable:
-```
-VITE_WS_URL=wss://your-app.railway.app
-```
+### Service 3: Mobile PWA
 
-**Desktop Game:**
-```bash
-cd packages/desktop
-vercel --prod
-```
+1. **New Service** → **GitHub Repo** → Select `ping_pong`
+2. **Settings**:
+   - **Root Directory**: `/`
+   - **Dockerfile Path**: `packages/mobile/Dockerfile`
+3. **Variables** (add before deploy):
+   ```
+   VITE_WS_URL=wss://paddlelink-server-production.up.railway.app
+   ```
+4. Deploy
 
-Set the same `VITE_WS_URL` environment variable.
+### Final URLs
 
-### Alternative: Deploy to Vercel Dashboard
+After deployment, you'll have 3 URLs:
 
-1. Import GitHub repo to Vercel
-2. Create two projects (one for mobile, one for desktop)
-3. For each project:
-   - Set **Root Directory** to `packages/mobile` or `packages/desktop`
-   - Add **Environment Variable**: `VITE_WS_URL=wss://your-server.railway.app`
-   - Build command: `cd ../.. && npm install && npm run build -w @paddlelink/shared && npm run build -w @paddlelink/mobile`
+| Service | Example URL |
+|---------|-------------|
+| Server | `wss://paddlelink-server-xxx.up.railway.app` |
+| Desktop | `https://paddlelink-desktop-xxx.up.railway.app` |
+| Mobile | `https://paddlelink-mobile-xxx.up.railway.app` |
 
 ### Environment Variables
 
-| Variable | Value | Where |
-|----------|-------|-------|
-| `VITE_WS_URL` | `wss://your-server.railway.app` | Vercel (mobile & desktop) |
-| `PORT` | `3000` (auto-set) | Railway |
+| Variable | Value | Services |
+|----------|-------|----------|
+| `VITE_WS_URL` | `wss://your-server.up.railway.app` | Desktop, Mobile |
+| `PORT` | Auto-set by Railway | All |
 
 ## License
 
 MIT
+
 
