@@ -28,6 +28,9 @@ export class Game {
     this.physics = new Physics();
     this.renderer = new Renderer(canvas);
     this.ai = new AIOpponent('medium');
+    
+    // Render initial empty table
+    this.render();
   }
   
   // ========================================
@@ -82,6 +85,9 @@ export class Game {
    */
   handlePlayerSwing(speed: number, angle: number, spin: number): void {
     const now = performance.now();
+    
+    // Always trigger visual slash effect
+    this.renderer.triggerSlash(speed, angle);
     
     // Check if player can hit
     if (this.phase !== 'playing' && this.phase !== 'serving') {

@@ -1,5 +1,12 @@
 import { RENDER } from '@paddlelink/shared';
 
+interface SlashPoint {
+  x: number;
+  y: number;
+  alpha: number;
+  time: number;
+}
+
 export interface RenderState {
   ball: { x: number; y: number; visible: boolean };
   playerHitZoneActive: boolean;
@@ -15,6 +22,11 @@ export class Renderer {
   private tableHeight = 0;
   private tableX = 0;
   private tableY = 0;
+  
+  // Slash effect state
+  private slashPoints: SlashPoint[] = [];
+  private slashActive = false;
+  private slashStartTime = 0;
   
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -70,6 +82,9 @@ export class Renderer {
     if (state.ball.visible) {
       this.drawBall(state.ball.x, state.ball.y);
     }
+    
+    // Draw slash effect on top
+    this.drawSlash();
   }
   
   private drawTable(): void {
@@ -178,5 +193,144 @@ export class Renderer {
     
     ctx.fillStyle = flashColor;
     ctx.fillRect(0, 0, this.width, this.height);
+  }
+  
+  /**
+   * Trigger a Fruit Ninja style slash effect
+   */
+  triggerSlash(speed: number, angle: number): void {
+    this.slashActive = true;
+    this.slashStartTime = performance.now();
+    this.slashPoints = [];
+    
+    // Create slash trail points based on angle
+    const centerX = this.tableX + this.tableWidth / 2;
+    const centerY = this.tableY + this.tableHeight * 0.85; // Near player zone
+    // Scale slash length with swing speed
+    const baseLength = this.tableWidth * 0.5;
+    const slashLength = baseLength + (speed / 30) * this.tableWidth * 0.2;
+    const angleRad = ((angle - 90) * Math.PI) / 180; // Convert to radians, adjust for swing angle
+    
+    // Calculate slash direction with some randomness
+    const startX = centerX - Math.cos(angleRad) * slashLength / 2;
+    const startY = centerY - Math.sin(angleRad) * slashLength / 2 * 0.5;
+    const endX = centerX + Math.cos(angleRad) * slashLength / 2;
+    const endY = centerY + Math.sin(angleRad) * slashLength / 2 * 0.5;
+    
+    // Create blade points with curve
+    const numPoints = 12;
+    for (let i = 0; i < numPoints; i++) {
+      const t = i / (numPoints - 1);
+      const x = startX + (endX - startX) * t;
+      const y = startY + (endY - startY) * t - Math.sin(t * Math.PI) * 40; // Arc curve
+      this.slashPoints.push({
+        x,
+        y,
+        alpha: 1,
+        time: this.slashStartTime + i * 15 // Stagger appearance
+      });
+    }
+  }
+  
+  /**
+   * Draw the slash effect (call this in render loop)
+   */
+  private drawSlash(): void {
+    if (!this.slashActive || this.slashPoints.length < 2) return;
+    
+    const ctx = this.ctx;
+    const now = performance.now();
+    const elapsed = now - this.slashStartTime;
+    
+    // Fade out slash over 300ms
+    const fadeStart = 100;
+    const fadeDuration = 200;
+    const globalAlpha = elapsed > fadeStart 
+      ? Math.max(0, 1 - (elapsed - fadeStart) / fadeDuration)
+      : 1;
+    
+    if (globalAlpha <= 0) {
+      this.slashActive = false;
+      this.slashPoints = [];
+      return;
+    }
+    
+    // Draw glow effect
+    ctx.save();
+    ctx.globalAlpha = globalAlpha * 0.6;
+    ctx.shadowColor = '#FF6F00';
+    ctx.shadowBlur = 30;
+    
+    // Draw main slash trail
+    ctx.beginPath();
+    ctx.moveTo(this.slashPoints[0].x, this.slashPoints[0].y);
+    
+    for (let i = 1; i < this.slashPoints.length; i++) {
+      const point = this.slashPoints[i];
+      if (now >= point.time) {
+        ctx.lineTo(point.x, point.y);
+      }
+    }
+    
+    // Create gradient for blade
+    const gradient = ctx.createLinearGradient(
+      this.slashPoints[0].x, this.slashPoints[0].y,
+      this.slashPoints[this.slashPoints.length - 1].x, this.slashPoints[this.slashPoints.length - 1].y
+    );
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+    gradient.addColorStop(0.5, 'rgba(255, 111, 0, 1)');
+    gradient.addColorStop(1, 'rgba(255, 200, 100, 0.8)');
+    
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = 8 * globalAlpha;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    
+    // Inner white core
+    ctx.globalAlpha = globalAlpha * 0.8;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    
+    ctx.restore();
+    
+    // Draw sparkles
+    this.drawSparkles(globalAlpha);
+  }
+  
+  /**
+   * Draw sparkle particles around slash
+   */
+  private drawSparkles(alpha: number): void {
+    const ctx = this.ctx;
+    const now = performance.now();
+    const elapsed = now - this.slashStartTime;
+    
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.8;
+    
+    for (let i = 0; i < this.slashPoints.length; i += 2) {
+      const point = this.slashPoints[i];
+      if (now < point.time) continue;
+      
+      const sparkleOffset = elapsed * 0.3;
+      const numSparkles = 3;
+      
+      for (let j = 0; j < numSparkles; j++) {
+        const angle = (i + j) * 0.7 + elapsed * 0.01;
+        const dist = 10 + sparkleOffset * (0.5 + Math.random() * 0.5);
+        const sparkleX = point.x + Math.cos(angle) * dist;
+        const sparkleY = point.y + Math.sin(angle) * dist;
+        const size = 2 + Math.random() * 2;
+        
+        ctx.fillStyle = j % 2 === 0 ? '#FFEB3B' : '#FF6F00';
+        ctx.beginPath();
+        ctx.arc(sparkleX, sparkleY, size * alpha, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    
+    ctx.restore();
   }
 }
