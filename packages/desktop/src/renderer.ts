@@ -38,7 +38,10 @@ export class Renderer {
     window.addEventListener('resize', () => this.resize());
   }
   
-  private resize(): void {
+  /**
+   * Resize canvas and recalculate table dimensions
+   */
+  resize(): void {
     // Full canvas size
     this.width = this.canvas.clientWidth;
     this.height = this.canvas.clientHeight;
@@ -68,6 +71,16 @@ export class Renderer {
    * Render a frame
    */
   render(state: RenderState): void {
+    // Auto-resize if canvas has no dimensions (hidden parent)
+    if (this.width === 0 || this.height === 0) {
+      this.resize();
+    }
+    
+    // Skip rendering if still no dimensions
+    if (this.width === 0 || this.height === 0) {
+      return;
+    }
+    
     // Clear
     this.ctx.fillStyle = '#121212';
     this.ctx.fillRect(0, 0, this.width, this.height);

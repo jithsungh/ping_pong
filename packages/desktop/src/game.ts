@@ -49,6 +49,14 @@ export class Game {
     this.onGameOver = callback;
   }
   
+  /**
+   * Force resize renderer (call when canvas becomes visible)
+   */
+  resizeCanvas(): void {
+    this.renderer.resize();
+    this.render();
+  }
+  
   // ========================================
   // Game Control
   // ========================================

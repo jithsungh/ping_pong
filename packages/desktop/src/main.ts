@@ -36,6 +36,11 @@ function showGameScreen(): void {
   startScreen.style.display = 'none';
   gameScreen.classList.add('active');
   gameOverOverlay.classList.remove('active');
+  
+  // Resize canvas now that it's visible
+  if (game) {
+    game.resizeCanvas();
+  }
 }
 
 function showGameOver(winner: 'player' | 'opponent', score: Score): void {
