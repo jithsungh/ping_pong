@@ -2,20 +2,21 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy root package files
+# Copy all package files for workspace resolution
 COPY package*.json ./
-COPY packages/shared/package*.json ./packages/shared/
-COPY packages/server/package*.json ./packages/server/
-
-# Install dependencies
-RUN npm install
-
-# Copy source code
+COPY tsconfig.base.json ./
 COPY packages/shared/ ./packages/shared/
 COPY packages/server/ ./packages/server/
-COPY tsconfig.base.json ./
 
-# Build shared package
+# Create empty directories for other packages (needed for workspace resolution)
+RUN mkdir -p packages/mobile packages/desktop
+COPY packages/mobile/package.json ./packages/mobile/
+COPY packages/desktop/package.json ./packages/desktop/
+
+# Install all dependencies
+RUN npm install --ignore-scripts
+
+# Build shared package first
 RUN npm run build -w @paddlelink/shared
 
 # Build server
@@ -25,4 +26,4 @@ RUN npm run build -w @paddlelink/server
 EXPOSE 3000
 
 # Start server
-CMD ["npm", "run", "start", "-w", "@paddlelink/server"]
+CMD ["node", "packages/server/dist/index.js"]
