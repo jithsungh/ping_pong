@@ -1,5 +1,6 @@
 import { Game3D } from './game3d';
 import { WebSocketServer } from './websocket';
+import { audioManager } from './audio';
 import type { GamePhase, Score, SwingMessage } from '@paddlelink/shared';
 
 // DOM Elements
@@ -95,6 +96,9 @@ function handleConnectionStateChange(state: string): void {
   if (state === 'connected') {
     waitingStatusEl.classList.add('connected');
     
+    // Resume audio context (requires user interaction)
+    audioManager.resume();
+    
     // Start game after brief delay
     setTimeout(() => {
       showGameScreen();
@@ -134,6 +138,7 @@ function init(): void {
   
   // Rematch button
   rematchBtn.addEventListener('click', () => {
+    audioManager.resume();
     gameOverOverlay.classList.remove('active');
     game?.start();
   });
@@ -141,6 +146,7 @@ function init(): void {
   // Keyboard controls for testing (without phone)
   document.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
+      audioManager.resume();
       // Simulate swing with 3D orientation
       const mockSwing: SwingMessage = {
         type: 'swing',

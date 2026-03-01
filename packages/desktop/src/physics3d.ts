@@ -41,8 +41,34 @@ export class Physics3D {
   private opponentMissed = false;
   private netHit = false;
   
+  // Collision callbacks for sound effects
+  private onTableBounce: (() => void) | null = null;
+  private onNetHit: (() => void) | null = null;
+  private onOut: (() => void) | null = null;
+  
   constructor() {
     this.ball = this.createInitialBall();
+  }
+  
+  /**
+   * Set callback for table bounce
+   */
+  setOnTableBounce(callback: () => void): void {
+    this.onTableBounce = callback;
+  }
+  
+  /**
+   * Set callback for net hit
+   */
+  setOnNetHit(callback: () => void): void {
+    this.onNetHit = callback;
+  }
+  
+  /**
+   * Set callback for ball out
+   */
+  setOnOut(callback: () => void): void {
+    this.onOut = callback;
   }
   
   /**
@@ -199,6 +225,9 @@ export class Physics3D {
         this.ball.spin.y *= 0.7;
         
         this.lastBounceTime = performance.now();
+        
+        // Trigger sound callback
+        this.onTableBounce?.();
       }
     }
     
@@ -222,6 +251,9 @@ export class Physics3D {
         this.netHit = true;
         // Ball hits net - stop it
         this.ball.velocity = { x: 0, y: -1, z: 0 };
+        
+        // Trigger sound callback
+        this.onNetHit?.();
       }
     }
   }
@@ -246,6 +278,9 @@ export class Physics3D {
   private determinePointWinner(): void {
     // Reset ball visibility
     this.ball.visible = false;
+    
+    // Trigger out sound
+    this.onOut?.();
   }
   
   /**
@@ -280,6 +315,15 @@ export class Physics3D {
   
   isOpponentMiss(): boolean {
     return this.opponentMissed || (this.netHit && this.ball.velocity.z > 0);
+  }
+  
+  /**
+   * Clear miss flags (call after scoring)
+   */
+  clearMissFlags(): void {
+    this.playerMissed = false;
+    this.opponentMissed = false;
+    this.netHit = false;
   }
   
   hideBall(): void {

@@ -9,6 +9,7 @@ export interface RenderState3D {
   playerHitZoneActive: boolean;
   paddleYaw?: number;
   paddlePitch?: number;
+  deltaTime?: number;
 }
 
 export class Scene3D {
@@ -23,6 +24,15 @@ export class Scene3D {
   
   private width = 0;
   private height = 0;
+  
+  // Camera orbit controls
+  private cameraOrbitX = 0;       // Horizontal rotation (left/right)
+  private cameraOrbitY = 0.15;    // Vertical angle (up/down), start slightly elevated
+  private cameraDistance = 3.2;   // Distance from table center
+  private cameraTarget = new THREE.Vector3(0, 0.76, -0.3); // Look at center of table
+  private isDragging = false;
+  private lastMouseX = 0;
+  private lastMouseY = 0;
   
   constructor(canvas: HTMLCanvasElement) {
     // Initialize renderer
@@ -40,10 +50,12 @@ export class Scene3D {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x1a1a2e);
     
-    // Create camera (player POV)
-    this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
-    this.camera.position.set(0, 1.8, 2.5);
-    this.camera.lookAt(0, 0.76, -0.5);
+    // Create camera (player POV - better default angle)
+    this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+    this.updateCameraPosition();
+    
+    // Set up mouse controls
+    this.setupMouseControls(canvas);
     
     // Add lighting
     this.setupLighting();
@@ -119,6 +131,75 @@ export class Scene3D {
     this.scene.add(gridHelper);
   }
   
+  private setupMouseControls(canvas: HTMLCanvasElement): void {
+    // Mouse down - start dragging
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0) { // Left mouse button
+        this.isDragging = true;
+        this.lastMouseX = e.clientX;
+        this.lastMouseY = e.clientY;
+        canvas.style.cursor = 'grabbing';
+      }
+    });
+    
+    // Mouse move - rotate camera
+    canvas.addEventListener('mousemove', (e) => {
+      if (!this.isDragging) return;
+      
+      const deltaX = e.clientX - this.lastMouseX;
+      const deltaY = e.clientY - this.lastMouseY;
+      
+      // Horizontal rotation (orbit around table)
+      this.cameraOrbitX -= deltaX * 0.005;
+      
+      // Vertical rotation (tilt up/down) - clamped
+      this.cameraOrbitY += deltaY * 0.003;
+      this.cameraOrbitY = Math.max(0.05, Math.min(0.6, this.cameraOrbitY));
+      
+      this.lastMouseX = e.clientX;
+      this.lastMouseY = e.clientY;
+      
+      this.updateCameraPosition();
+    });
+    
+    // Mouse up - stop dragging
+    window.addEventListener('mouseup', () => {
+      this.isDragging = false;
+      canvas.style.cursor = 'grab';
+    });
+    
+    // Mouse wheel - zoom
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      this.cameraDistance += e.deltaY * 0.003;
+      this.cameraDistance = Math.max(1.5, Math.min(6, this.cameraDistance));
+      this.updateCameraPosition();
+    }, { passive: false });
+    
+    // Set default cursor
+    canvas.style.cursor = 'grab';
+  }
+  
+  private updateCameraPosition(): void {
+    // Calculate camera position based on orbit angles
+    const x = Math.sin(this.cameraOrbitX) * this.cameraDistance;
+    const z = Math.cos(this.cameraOrbitX) * this.cameraDistance;
+    const y = 0.76 + this.cameraOrbitY * this.cameraDistance + 0.5;
+    
+    this.camera.position.set(x, y, z);
+    this.camera.lookAt(this.cameraTarget);
+  }
+  
+  /**
+   * Reset camera to default player view
+   */
+  resetCamera(): void {
+    this.cameraOrbitX = 0;
+    this.cameraOrbitY = 0.15;
+    this.cameraDistance = 3.2;
+    this.updateCameraPosition();
+  }
+  
   resize(): void {
     const container = this.renderer.domElement.parentElement;
     if (!container) return;
@@ -156,6 +237,7 @@ export class Scene3D {
       this.paddle.setRotation(state.paddleYaw, state.paddlePitch);
     }
     this.paddle.setActive(state.playerHitZoneActive);
+    this.paddle.update(state.deltaTime ?? 0.016);
     
     // Render scene
     this.renderer.render(this.scene, this.camera);
@@ -166,6 +248,7 @@ export class Scene3D {
    */
   triggerHitEffect(_x: number, _y: number, _z: number, power: number): void {
     this.ball.triggerHitEffect(power);
+    this.paddle.triggerSwingEffect();
   }
   
   /**

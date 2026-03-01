@@ -3,6 +3,7 @@ import type { GamePhase, Score, SwingMessage } from '@paddlelink/shared';
 import { Scene3D, RenderState3D } from './renderer3d';
 import { Physics3D } from './physics3d';
 import { AIOpponent } from './ai';
+import { audioManager } from './audio';
 
 // Hit timing window in milliseconds
 const HIT_WINDOW_MS = 150;
@@ -21,6 +22,7 @@ export class Game3D {
   private lastSwingTimestamp = 0;
   
   private lastFrameTime = 0;
+  private lastDeltaTime = 0.016;
   private animationId: number | null = null;
   
   // Callbacks
@@ -32,6 +34,11 @@ export class Game3D {
     this.physics = new Physics3D();
     this.scene = new Scene3D(canvas);
     this.ai = new AIOpponent('medium');
+    
+    // Set up physics sound callbacks
+    this.physics.setOnTableBounce(() => audioManager.playTableBounce());
+    this.physics.setOnNetHit(() => audioManager.playNetHit());
+    this.physics.setOnOut(() => audioManager.playOut());
     
     // Initial render
     this.render();
@@ -122,6 +129,8 @@ export class Game3D {
       this.setPhase('playing');
       this.lastHitTime = now;
       this.scene.triggerHitEffect(0, 0, 0, speed);
+      audioManager.playPaddleHit(speed);
+      audioManager.playServe();
       return;
     }
     
@@ -135,8 +144,9 @@ export class Game3D {
       this.lastHitTime = now;
       this.canPlayerHit = false;
       
-      // Visual feedback
+      // Visual and audio feedback
       this.scene.triggerHitEffect(0, 0, 0, speed * quality);
+      audioManager.playPaddleHit(speed * quality);
     }
   }
   
@@ -166,6 +176,7 @@ export class Game3D {
     const now = performance.now();
     const deltaTime = Math.min((now - this.lastFrameTime) / 1000, 0.1);
     this.lastFrameTime = now;
+    this.lastDeltaTime = deltaTime;
     
     this.update(deltaTime, now);
     this.render();
@@ -198,6 +209,7 @@ export class Game3D {
       const aiHit = this.ai.update(aiBall, currentTime);
       if (aiHit) {
         this.physics.applyOpponentHit(aiHit.speed, aiHit.angle, aiHit.spin);
+        audioManager.playPaddleHit(aiHit.speed);
       }
     }
     
@@ -207,11 +219,13 @@ export class Game3D {
       this.setPhase('playing');
     }
     
-    // Check for points
-    if (this.physics.isPlayerMiss()) {
-      this.scorePoint('opponent');
-    } else if (this.physics.isOpponentMiss()) {
-      this.scorePoint('player');
+    // Check for points (only if not already scored this round)
+    if (this.phase === 'playing') {
+      if (this.physics.isPlayerMiss()) {
+        this.scorePoint('opponent');
+      } else if (this.physics.isOpponentMiss()) {
+        this.scorePoint('player');
+      }
     }
   }
   
@@ -225,7 +239,8 @@ export class Game3D {
         z: ball.z,
         visible: ball.visible 
       },
-      playerHitZoneActive: this.canPlayerHit
+      playerHitZoneActive: this.canPlayerHit,
+      deltaTime: this.lastDeltaTime
     };
     
     this.scene.render(state);
@@ -237,6 +252,10 @@ export class Game3D {
   }
   
   private scorePoint(scorer: 'player' | 'opponent'): void {
+    // Immediately clear miss flags to prevent re-triggering
+    this.physics.clearMissFlags();
+    this.physics.hideBall();
+    
     if (scorer === 'player') {
       this.score.player++;
     } else {
@@ -244,6 +263,9 @@ export class Game3D {
     }
     
     this.onScoreChange?.({ ...this.score });
+    
+    // Play score sound
+    audioManager.playScore(scorer === 'player');
     
     // Check for game over
     const { player, opponent } = this.score;

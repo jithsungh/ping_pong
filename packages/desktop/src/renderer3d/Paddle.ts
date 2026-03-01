@@ -9,6 +9,13 @@ export class Paddle {
   private glowRing!: THREE.Mesh;
   private isActive = false;
   
+  // Animation state
+  private targetYaw = 0;
+  private targetPitch = 0;
+  private currentYaw = 0;
+  private currentPitch = 0;
+  private swingAnimation = 0;  // 0 = none, 1 = full swing
+  
   constructor() {
     this.group = new THREE.Group();
     this.paddle = new THREE.Group();
@@ -91,13 +98,38 @@ export class Paddle {
   }
   
   setRotation(yaw: number, pitch: number): void {
-    // Convert degrees to radians
-    const yawRad = (yaw * Math.PI) / 180;
-    const pitchRad = (pitch * Math.PI) / 180;
+    // Set target rotation (smooth animation)
+    this.targetYaw = yaw;
+    this.targetPitch = pitch;
+  }
+  
+  /**
+   * Update animation (call each frame)
+   */
+  update(deltaTime: number): void {
+    // Smooth interpolation toward target rotation
+    const lerpSpeed = 12 * deltaTime;
     
-    // Apply rotation to paddle
+    this.currentYaw += (this.targetYaw - this.currentYaw) * Math.min(1, lerpSpeed);
+    this.currentPitch += (this.targetPitch - this.currentPitch) * Math.min(1, lerpSpeed);
+    
+    // Swing animation decay
+    if (this.swingAnimation > 0) {
+      this.swingAnimation = Math.max(0, this.swingAnimation - deltaTime * 5);
+    }
+    
+    // Convert degrees to radians
+    const yawRad = (this.currentYaw * Math.PI) / 180;
+    const pitchRad = (this.currentPitch * Math.PI) / 180;
+    
+    // Apply rotation to paddle with swing effect
+    const swingOffset = Math.sin(this.swingAnimation * Math.PI) * 0.3;
     this.paddle.rotation.y = yawRad;
-    this.paddle.rotation.x = -Math.PI / 2 + pitchRad * 0.5;
+    this.paddle.rotation.x = -Math.PI / 2 + pitchRad * 0.5 - swingOffset;
+    
+    // Move paddle forward during swing
+    this.paddle.position.z = -swingOffset * 0.15;
+    this.paddle.position.y = swingOffset * 0.1;
   }
   
   setActive(active: boolean): void {
@@ -113,6 +145,9 @@ export class Paddle {
   }
   
   triggerSwingEffect(): void {
+    // Trigger swing animation
+    this.swingAnimation = 1.0;
+    
     // Flash effect on swing
     const material = this.glowRing.material as THREE.MeshBasicMaterial;
     material.opacity = 0.8;

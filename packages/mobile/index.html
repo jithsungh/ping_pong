@@ -155,27 +155,79 @@
     
     .room-input {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       width: 100%;
+      justify-content: center;
     }
     
-    input[type="text"] {
-      flex: 1;
-      padding: 15px;
-      font-size: 18px;
+    .room-code-box {
+      width: 52px;
+      height: 64px;
+      padding: 0;
+      font-size: 28px;
       text-transform: uppercase;
       text-align: center;
-      letter-spacing: 4px;
-      border: none;
+      border: 3px solid rgba(255,255,255,0.4);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.95);
+      color: #1B5E20;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+      transition: border-color 0.2s, transform 0.1s;
+    }
+    
+    .room-code-box:focus {
+      outline: none;
+      border-color: #FF6F00;
+      transform: scale(1.05);
+    }
+    
+    .room-code-box::placeholder {
+      color: #ccc;
+      font-size: 24px;
+    }
+    
+    .server-input {
+      width: 100%;
+      padding: 12px 15px;
+      font-size: 12px;
+      border: 2px solid rgba(255,255,255,0.3);
       border-radius: 10px;
       background: rgba(255,255,255,0.9);
       color: #1B5E20;
-      font-weight: bold;
+      text-align: center;
     }
     
-    input::placeholder {
-      color: #888;
-      letter-spacing: 1px;
+    .server-input:focus {
+      outline: none;
+      border-color: #FF6F00;
+    }
+    
+    .connect-form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      width: 100%;
+      max-width: 300px;
+    }
+    
+    .form-section {
+      width: 100%;
+      text-align: center;
+    }
+    
+    .form-label {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-bottom: 8px;
+      display: block;
+    }
+    
+    .room-code-label {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
     }
     
     .hidden {
@@ -209,16 +261,23 @@
         <h2>PaddleLink</h2>
       </div>
       <div class="main-area">
-        <p style="margin-bottom: 10px; font-size: 14px;">Server URL (Railway):</p>
-        <div class="controls">
-          <input type="text" id="server-url" value="wss://paddlelinkserver-production.up.railway.app" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="font-size: 12px; letter-spacing: 0; text-transform: none;">
-        </div>
-        <p style="margin: 20px 0 10px 0;">Room code from desktop:</p>
-        <div class="controls">
-          <div class="room-input">
-            <input type="text" id="room-code" placeholder="XXXX" maxlength="4" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+        <div class="connect-form">
+          <div class="form-section">
+            <span class="room-code-label">Enter Room Code</span>
+            <div class="room-input">
+              <input type="text" class="room-code-box" id="code-1" maxlength="1" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="-">
+              <input type="text" class="room-code-box" id="code-2" maxlength="1" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="-">
+              <input type="text" class="room-code-box" id="code-3" maxlength="1" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="-">
+              <input type="text" class="room-code-box" id="code-4" maxlength="1" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="-">
+            </div>
           </div>
-          <button id="connect-btn" class="btn-primary">Connect</button>
+          
+          <button id="connect-btn" class="btn-primary" style="width: 100%; margin-top: 10px;">Connect</button>
+          
+          <div class="form-section" style="margin-top: 20px;">
+            <span class="form-label">Server URL (advanced)</span>
+            <input type="text" class="server-input" id="server-url" value="wss://paddlelinkserver-production.up.railway.app" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          </div>
         </div>
       </div>
     </div>

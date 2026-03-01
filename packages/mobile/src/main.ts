@@ -7,7 +7,12 @@ const permissionScreen = document.getElementById('permission-screen')!;
 const connectScreen = document.getElementById('connect-screen')!;
 const gameScreen = document.getElementById('game-screen')!;
 const requestPermissionBtn = document.getElementById('request-permission')!;
-const roomCodeInput = document.getElementById('room-code') as HTMLInputElement;
+const codeInputs = [
+  document.getElementById('code-1') as HTMLInputElement,
+  document.getElementById('code-2') as HTMLInputElement,
+  document.getElementById('code-3') as HTMLInputElement,
+  document.getElementById('code-4') as HTMLInputElement
+];
 const serverUrlInput = document.getElementById('server-url') as HTMLInputElement;
 const connectBtn = document.getElementById('connect-btn')!;
 const calibrateBtn = document.getElementById('calibrate-btn')!;
@@ -66,6 +71,13 @@ function handleSensorUpdate(data: SensorData): void {
 
 function handleSwing(swing: SwingDetection): void {
   console.log('Swing detected:', swing);
+  
+  // Haptic feedback - vibrate based on swing power
+  if ('vibrate' in navigator) {
+    // Stronger swing = longer vibration (20-50ms)
+    const vibrationDuration = Math.round(20 + swing.speed * 30);
+    navigator.vibrate(vibrationDuration);
+  }
   
   // Update UI
   speedValue.textContent = swing.speed.toFixed(2);
@@ -126,16 +138,19 @@ async function handlePermissionRequest(): Promise<void> {
 }
 
 function handleConnect(): void {
-  const roomCode = roomCodeInput.value.trim().toUpperCase();
+  const roomCode = codeInputs.map(input => input.value.trim().toUpperCase()).join('');
   const serverUrl = serverUrlInput.value.trim();
   
   if (roomCode.length !== 4) {
     alert('Please enter a 4-character room code');
+    // Focus on first empty input
+    const emptyInput = codeInputs.find(input => !input.value.trim());
+    emptyInput?.focus();
     return;
   }
   
   // Blur inputs to prevent shake-to-undo on form history
-  roomCodeInput.blur();
+  codeInputs.forEach(input => input.blur());
   serverUrlInput.blur();
   
   // Set server URL if provided
@@ -174,9 +189,48 @@ function init(): void {
   disconnectBtn.addEventListener('click', handleDisconnect);
   calibrateBtn.addEventListener('click', handleCalibrate);
   
-  // Auto-uppercase room code
-  roomCodeInput.addEventListener('input', () => {
-    roomCodeInput.value = roomCodeInput.value.toUpperCase();
+  // Set up room code inputs - auto-focus next, uppercase, backspace handling
+  codeInputs.forEach((input, index) => {
+    // Auto-uppercase and move to next on input
+    input.addEventListener('input', (e) => {
+      const target = e.target as HTMLInputElement;
+      target.value = target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      
+      // Move to next input if character entered
+      if (target.value.length === 1 && index < 3) {
+        codeInputs[index + 1].focus();
+      }
+    });
+    
+    // Handle backspace to go to previous input
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && input.value === '' && index > 0) {
+        codeInputs[index - 1].focus();
+        codeInputs[index - 1].select();
+      }
+      // Handle Enter to connect
+      if (e.key === 'Enter') {
+        handleConnect();
+      }
+      // Handle paste
+      if (e.key === 'v' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        navigator.clipboard.readText().then(text => {
+          const code = text.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+          for (let i = 0; i < 4; i++) {
+            codeInputs[i].value = code[i] || '';
+          }
+          if (code.length === 4) {
+            codeInputs[3].focus();
+          }
+        }).catch(() => {});
+      }
+    });
+    
+    // Select all on focus
+    input.addEventListener('focus', () => {
+      input.select();
+    });
   });
   
   // Check if we need permission or can start directly
