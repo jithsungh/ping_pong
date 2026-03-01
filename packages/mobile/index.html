@@ -199,6 +199,7 @@
     <div id="permission-screen" class="permission-request">
       <h2>PaddleLink</h2>
       <p>Allow motion sensors to use your phone as a paddle</p>
+      <p style="font-size: 12px; margin-top: 15px; opacity: 0.8;">iOS tip: Go to Settings > Accessibility > Touch > Shake to Undo > OFF</p>
       <button id="request-permission" class="btn-primary">Enable Motion</button>
     </div>
     
@@ -210,12 +211,12 @@
       <div class="main-area">
         <p style="margin-bottom: 10px; font-size: 14px;">Server URL (Railway):</p>
         <div class="controls">
-          <input type="text" id="server-url" value="wss://paddlelinkserver-production.up.railway.app" autocomplete="off" style="font-size: 12px; letter-spacing: 0; text-transform: none;">
+          <input type="text" id="server-url" value="wss://paddlelinkserver-production.up.railway.app" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="font-size: 12px; letter-spacing: 0; text-transform: none;">
         </div>
         <p style="margin: 20px 0 10px 0;">Room code from desktop:</p>
         <div class="controls">
           <div class="room-input">
-            <input type="text" id="room-code" placeholder="XXXX" maxlength="4" autocomplete="off">
+            <input type="text" id="room-code" placeholder="XXXX" maxlength="4" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
           </div>
           <button id="connect-btn" class="btn-primary">Connect</button>
         </div>

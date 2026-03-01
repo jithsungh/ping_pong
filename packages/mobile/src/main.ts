@@ -134,6 +134,10 @@ function handleConnect(): void {
     return;
   }
   
+  // Blur inputs to prevent shake-to-undo on form history
+  roomCodeInput.blur();
+  serverUrlInput.blur();
+  
   // Set server URL if provided
   if (serverUrl) {
     wsManager.setServerUrl(serverUrl);
@@ -192,6 +196,27 @@ function init(): void {
   document.body.addEventListener('touchmove', (e) => {
     e.preventDefault();
   }, { passive: false });
+  
+  // Disable iOS Shake to Undo
+  // 1. Prevent undo/redo input events
+  document.addEventListener('beforeinput', (e) => {
+    if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') {
+      e.preventDefault();
+    }
+  });
+  
+  // 2. Clear any undo history on window focus
+  window.addEventListener('focus', () => {
+    // Clear selection to reset undo stack
+    window.getSelection()?.removeAllRanges();
+  });
+  
+  // 3. Blur any focused input to prevent undo on form elements
+  document.addEventListener('visibilitychange', () => {
+    if (document.activeElement instanceof HTMLInputElement) {
+      document.activeElement.blur();
+    }
+  });
   
   console.log('PaddleLink Mobile initialized');
 }
