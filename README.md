@@ -123,37 +123,56 @@ Deploy all 3 services to Railway for free.
 2. Create new **Project**
 3. Add **3 services** from the same GitHub repo
 
-### Service 1: WebSocket Server
+### Service 1: WebSocket Server (Deploy First!)
 
 1. **New Service** → **GitHub Repo** → Select `ping_pong`
-2. **Settings**:
-   - **Root Directory**: `/` (leave empty)
+2. Go to **Settings** tab → **Build** section:
+   - **Builder**: Select **Dockerfile** (IMPORTANT - don't use Nixpacks)
    - **Dockerfile Path**: `packages/server/Dockerfile`
-3. Deploy and copy the URL (e.g., `paddlelink-server-production.up.railway.app`)
+   - **Root Directory**: Leave empty (uses repo root)
+3. Click **Deploy**
+4. Once deployed, go to **Settings** → **Networking** → **Generate Domain**
+5. Copy the URL (e.g., `paddlelink-server-production.up.railway.app`)
 
 ### Service 2: Desktop Game
 
 1. **New Service** → **GitHub Repo** → Select `ping_pong`
-2. **Settings**:
-   - **Root Directory**: `/`
+2. Go to **Settings** tab → **Build** section:
+   - **Builder**: Select **Dockerfile**
    - **Dockerfile Path**: `packages/desktop/Dockerfile`
-3. **Variables** (add before deploy):
+   - **Root Directory**: Leave empty
+3. Go to **Variables** tab → Add:
    ```
    VITE_WS_URL=wss://paddlelink-server-production.up.railway.app
    ```
-4. Deploy
+   (Replace with YOUR server URL from Step 1)
+4. Click **Deploy**
+5. Generate domain in Settings → Networking
 
 ### Service 3: Mobile PWA
 
 1. **New Service** → **GitHub Repo** → Select `ping_pong`
-2. **Settings**:
-   - **Root Directory**: `/`
+2. Go to **Settings** tab → **Build** section:
+   - **Builder**: Select **Dockerfile**
    - **Dockerfile Path**: `packages/mobile/Dockerfile`
-3. **Variables** (add before deploy):
+   - **Root Directory**: Leave empty
+3. Go to **Variables** tab → Add:
    ```
    VITE_WS_URL=wss://paddlelink-server-production.up.railway.app
    ```
-4. Deploy
+4. Click **Deploy**
+5. Generate domain in Settings → Networking
+
+### Troubleshooting Railway Deployment
+
+**Build fails with "Cannot find module '@paddlelink/shared'":**
+- This means Railway is using Nixpacks instead of Dockerfile
+- Go to **Settings** → **Build** → Change **Builder** to **Dockerfile**
+- Ensure **Dockerfile Path** is set correctly (e.g., `packages/server/Dockerfile`)
+
+**Variables not working:**
+- Add variables BEFORE deploying, or redeploy after adding them
+- For `VITE_WS_URL`, use `wss://` prefix (not `https://`)
 
 ### Final URLs
 
