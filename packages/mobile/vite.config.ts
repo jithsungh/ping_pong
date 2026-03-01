@@ -29,8 +29,14 @@ export default defineConfig({
     })
   ],
   server: {
-    host: true, // Allow external access for phone testing
-    port: 5173
+    host: true,
+    port: 5173,
+    allowedHosts: true
+  },
+  preview: {
+    host: true,
+    port: 3000,
+    allowedHosts: true
   },
   build: {
     outDir: 'dist',
