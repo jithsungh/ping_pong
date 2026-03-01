@@ -113,6 +113,64 @@ iOS requires HTTPS for sensor access. For local development:
 - Close other apps using network
 - Try moving closer to router
 
+## Deployment
+
+### Architecture
+
+Vercel doesn't support persistent WebSocket connections, so we deploy to multiple services:
+
+| Service | Platform | Why |
+|---------|----------|-----|
+| Mobile PWA | Vercel | Static site |
+| Desktop Game | Vercel | Static site |
+| WebSocket Server | Railway/Render | Persistent connections |
+
+### Step 1: Deploy WebSocket Server (Railway)
+
+1. Create account at [railway.app](https://railway.app)
+2. Create new project → Deploy from GitHub repo
+3. Set root directory to `/` (monorepo root)
+4. Railway will auto-detect the Dockerfile at `packages/server/Dockerfile`
+5. Copy the deployed URL (e.g., `your-app.railway.app`)
+
+### Step 2: Deploy Frontends (Vercel)
+
+**Mobile PWA:**
+```bash
+cd packages/mobile
+vercel --prod
+```
+
+When prompted, set environment variable:
+```
+VITE_WS_URL=wss://your-app.railway.app
+```
+
+**Desktop Game:**
+```bash
+cd packages/desktop
+vercel --prod
+```
+
+Set the same `VITE_WS_URL` environment variable.
+
+### Alternative: Deploy to Vercel Dashboard
+
+1. Import GitHub repo to Vercel
+2. Create two projects (one for mobile, one for desktop)
+3. For each project:
+   - Set **Root Directory** to `packages/mobile` or `packages/desktop`
+   - Add **Environment Variable**: `VITE_WS_URL=wss://your-server.railway.app`
+   - Build command: `cd ../.. && npm install && npm run build -w @paddlelink/shared && npm run build -w @paddlelink/mobile`
+
+### Environment Variables
+
+| Variable | Value | Where |
+|----------|-------|-------|
+| `VITE_WS_URL` | `wss://your-server.railway.app` | Vercel (mobile & desktop) |
+| `PORT` | `3000` (auto-set) | Railway |
+
 ## License
 
 MIT
+
