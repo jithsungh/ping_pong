@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PaddleLink - Table Tennis</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #121212;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    #app {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    /* Start Screen */
+    #start-screen {
+      text-align: center;
+      color: white;
+    }
+    
+    #start-screen h1 {
+      font-size: 48px;
+      color: #4CAF50;
+      margin-bottom: 10px;
+    }
+    
+    #start-screen .subtitle {
+      color: #888;
+      margin-bottom: 40px;
+    }
+    
+    .room-code-display {
+      background: #1E1E1E;
+      padding: 30px 50px;
+      border-radius: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .room-code-display label {
+      display: block;
+      color: #888;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    
+    .room-code {
+      font-size: 64px;
+      font-weight: bold;
+      letter-spacing: 12px;
+      color: #FF6F00;
+      font-family: monospace;
+    }
+    
+    .waiting-status {
+      color: #888;
+      margin-bottom: 20px;
+    }
+    
+    .waiting-status.connected {
+      color: #4CAF50;
+    }
+    
+    .qr-placeholder {
+      width: 150px;
+      height: 150px;
+      background: white;
+      margin: 20px auto;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+      font-size: 12px;
+    }
+    
+    .instructions {
+      color: #666;
+      font-size: 14px;
+      margin-top: 20px;
+    }
+    
+    /* Game Screen */
+    #game-screen {
+      display: none;
+      width: 100%;
+      height: 100%;
+      flex-direction: column;
+    }
+    
+    #game-screen.active {
+      display: flex;
+    }
+    
+    .score-bar {
+      display: flex;
+      justify-content: space-between;
+      padding: 20px 40px;
+      background: #1E1E1E;
+      color: white;
+    }
+    
+    .score {
+      font-size: 24px;
+    }
+    
+    .score-value {
+      font-size: 48px;
+      font-weight: bold;
+    }
+    
+    .player-score .score-value {
+      color: #4CAF50;
+    }
+    
+    .opponent-score .score-value {
+      color: #f44336;
+    }
+    
+    .game-status {
+      text-align: center;
+      flex: 1;
+    }
+    
+    .game-status .label {
+      font-size: 14px;
+      color: #888;
+    }
+    
+    .game-status .status {
+      font-size: 18px;
+      color: #FF6F00;
+    }
+    
+    #game-canvas {
+      flex: 1;
+      width: 100%;
+    }
+    
+    .game-info {
+      padding: 10px 40px;
+      background: #1E1E1E;
+      color: #666;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    /* Game Over Overlay */
+    #game-over-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      align-items: center;
+      justify-content: center;
+      color: white;
+      text-align: center;
+    }
+    
+    #game-over-overlay.active {
+      display: flex;
+    }
+    
+    #game-over-overlay h2 {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+    
+    #game-over-overlay .final-score {
+      font-size: 36px;
+      margin-bottom: 30px;
+    }
+    
+    button {
+      padding: 15px 40px;
+      font-size: 18px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      background: #4CAF50;
+      color: white;
+      font-weight: bold;
+    }
+    
+    button:hover {
+      background: #45a049;
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Start Screen -->
+    <div id="start-screen">
+      <h1>PaddleLink</h1>
+      <p class="subtitle">Motion-Controlled Table Tennis</p>
+      
+      <div class="room-code-display">
+        <label>ROOM CODE</label>
+        <div class="room-code" id="room-code">----</div>
+      </div>
+      
+      <p class="waiting-status" id="waiting-status">Generating room code...</p>
+      
+      <div class="qr-placeholder">
+        QR Code
+      </div>
+      
+      <p class="instructions">
+        Open PaddleLink on your phone and enter the room code
+      </p>
+    </div>
+    
+    <!-- Game Screen -->
+    <div id="game-screen">
+      <div class="score-bar">
+        <div class="score opponent-score">
+          <div>OPPONENT</div>
+          <div class="score-value" id="opponent-score">0</div>
+        </div>
+        <div class="game-status">
+          <div class="label">STATUS</div>
+          <div class="status" id="game-status">Waiting...</div>
+        </div>
+        <div class="score player-score">
+          <div>YOU</div>
+          <div class="score-value" id="player-score">0</div>
+        </div>
+      </div>
+      
+      <canvas id="game-canvas"></canvas>
+      
+      <div class="game-info">
+        <span>Room: <span id="room-code-small">----</span></span>
+        <span id="connection-info">Connected</span>
+        <span>First to 11 points</span>
+      </div>
+    </div>
+    
+    <!-- Game Over Overlay -->
+    <div id="game-over-overlay">
+      <div>
+        <h2 id="winner-text">You Win!</h2>
+        <p class="final-score" id="final-score">11 - 9</p>
+        <button id="rematch-btn">Play Again</button>
+      </div>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

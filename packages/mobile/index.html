@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1B5E20">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>PaddleLink - Paddle Controller</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+    
+    #app {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px;
+    }
+    
+    .status-bar {
+      width: 100%;
+      text-align: center;
+      padding: 10px;
+    }
+    
+    .connection-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 20px;
+      font-size: 14px;
+    }
+    
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #f44336;
+    }
+    
+    .status-dot.connected {
+      background: #4CAF50;
+    }
+    
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+    
+    .swing-indicator {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      border: 4px solid rgba(255,255,255,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: bold;
+      transition: all 0.15s ease;
+    }
+    
+    .swing-indicator.swing-detected {
+      background: rgba(76, 175, 80, 0.8);
+      border-color: #4CAF50;
+      transform: scale(1.1);
+    }
+    
+    .sensor-debug {
+      margin-top: 20px;
+      font-family: monospace;
+      font-size: 12px;
+      background: rgba(0,0,0,0.3);
+      padding: 15px;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 300px;
+    }
+    
+    .sensor-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 5px 0;
+    }
+    
+    .controls {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 300px;
+    }
+    
+    button {
+      padding: 15px 30px;
+      font-size: 16px;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.1s;
+    }
+    
+    button:active {
+      transform: scale(0.98);
+    }
+    
+    .btn-primary {
+      background: #FF6F00;
+      color: white;
+    }
+    
+    .btn-secondary {
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
+    
+    .room-input {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+    
+    input[type="text"] {
+      flex: 1;
+      padding: 15px;
+      font-size: 18px;
+      text-transform: uppercase;
+      text-align: center;
+      letter-spacing: 4px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.9);
+      color: #1B5E20;
+      font-weight: bold;
+    }
+    
+    input::placeholder {
+      color: #888;
+      letter-spacing: 1px;
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+    
+    .permission-request {
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .permission-request p {
+      margin-bottom: 20px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Permission Request Screen -->
+    <div id="permission-screen" class="permission-request">
+      <h2>PaddleLink</h2>
+      <p>Allow motion sensors to use your phone as a paddle</p>
+      <button id="request-permission" class="btn-primary">Enable Motion</button>
+    </div>
+    
+    <!-- Connection Screen -->
+    <div id="connect-screen" class="hidden">
+      <div class="status-bar">
+        <h2>PaddleLink</h2>
+      </div>
+      <div class="main-area">
+        <p style="margin-bottom: 20px;">Enter room code from game screen:</p>
+        <div class="controls">
+          <div class="room-input">
+            <input type="text" id="room-code" placeholder="XXXX" maxlength="4" autocomplete="off">
+          </div>
+          <button id="connect-btn" class="btn-primary">Connect</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Game Screen -->
+    <div id="game-screen" class="hidden">
+      <div class="status-bar">
+        <div class="connection-status">
+          <span class="status-dot" id="status-dot"></span>
+          <span id="status-text">Connecting...</span>
+        </div>
+      </div>
+      
+      <div class="main-area">
+        <div class="swing-indicator" id="swing-indicator">
+          READY
+        </div>
+        
+        <div class="sensor-debug" id="sensor-debug">
+          <div class="sensor-row">
+            <span>Accel:</span>
+            <span id="accel-value">0.0</span>
+          </div>
+          <div class="sensor-row">
+            <span>Speed:</span>
+            <span id="speed-value">0.0</span>
+          </div>
+          <div class="sensor-row">
+            <span>Angle:</span>
+            <span id="angle-value">0°</span>
+          </div>
+          <div class="sensor-row">
+            <span>Swings:</span>
+            <span id="swing-count">0</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="controls">
+        <button id="calibrate-btn" class="btn-secondary">Calibrate (Hold Flat)</button>
+        <button id="disconnect-btn" class="btn-secondary">Disconnect</button>
+      </div>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
