@@ -25,6 +25,13 @@ export class Game3D {
   private lastDeltaTime = 0.016;
   private animationId: number | null = null;
   
+  // Paddle orientation (from last swing)
+  private paddleYaw = 0;
+  private paddlePitch = 0;
+  
+  // Prevent double-scoring
+  private isScoring = false;
+  
   // Callbacks
   private onScoreChange: ((score: Score) => void) | null = null;
   private onPhaseChange: ((phase: GamePhase) => void) | null = null;
@@ -76,6 +83,7 @@ export class Game3D {
     this.score = { player: 0, opponent: 0 };
     this.server = 'player';
     this.serveCount = 0;
+    this.isScoring = false;
     this.ai.reset();
     
     this.setPhase('serving');
@@ -104,6 +112,10 @@ export class Game3D {
     const yaw = swing.yaw ?? swing.angle;
     const pitch = swing.pitch ?? 0;
     const spin = swing.spin;
+    
+    // Always update paddle orientation for visual feedback
+    this.paddleYaw = yaw;
+    this.paddlePitch = pitch;
     
     // Check if player can hit (phase check)
     if (this.phase !== 'playing' && this.phase !== 'serving') {
@@ -240,6 +252,8 @@ export class Game3D {
         visible: ball.visible 
       },
       playerHitZoneActive: this.canPlayerHit,
+      paddleYaw: this.paddleYaw,
+      paddlePitch: this.paddlePitch,
       deltaTime: this.lastDeltaTime
     };
     
@@ -252,6 +266,10 @@ export class Game3D {
   }
   
   private scorePoint(scorer: 'player' | 'opponent'): void {
+    // Prevent double-triggering
+    if (this.isScoring) return;
+    this.isScoring = true;
+    
     // Immediately clear miss flags to prevent re-triggering
     this.physics.clearMissFlags();
     this.physics.hideBall();
@@ -292,6 +310,7 @@ export class Game3D {
     // Brief pause then serve
     this.setPhase('point');
     setTimeout(() => {
+      this.isScoring = false;
       this.setPhase('serving');
       this.physics.resetForServe(this.server);
     }, 1500);
