@@ -6,6 +6,7 @@ type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'waiting' |
 export class WebSocketManager {
   private ws: WebSocket | null = null;
   private roomCode: string = '';
+  private serverUrl: string = '';
   private reconnectAttempts = 0;
   private state: ConnectionState = 'disconnected';
   
@@ -16,15 +17,30 @@ export class WebSocketManager {
    * Get the WebSocket server URL
    */
   private getServerUrl(): string {
-    // Use deployed URL if set, otherwise fall back to local development
+    // 1. Use manually set server URL (from UI input)
+    if (this.serverUrl) {
+      return this.serverUrl;
+    }
+    // 2. Use deployed URL if set via env var
     if (import.meta.env.VITE_WS_URL) {
       return import.meta.env.VITE_WS_URL;
     }
-    // Local development fallback
+    // 3. Production default (Railway)
+    if (window.location.hostname.includes('railway.app')) {
+      return 'wss://paddlelinkserver-production.up.railway.app';
+    }
+    // 4. Local development fallback
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = import.meta.env.VITE_WS_HOST || window.location.hostname;
     const port = import.meta.env.VITE_WS_PORT || NETWORK.DEFAULT_PORT;
     return `${protocol}//${host}:${port}`;
+  }
+  
+  /**
+   * Set custom server URL (for Railway deployment)
+   */
+  setServerUrl(url: string): void {
+    this.serverUrl = url;
   }
   
   /**

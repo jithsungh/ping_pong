@@ -8,6 +8,7 @@ const connectScreen = document.getElementById('connect-screen')!;
 const gameScreen = document.getElementById('game-screen')!;
 const requestPermissionBtn = document.getElementById('request-permission')!;
 const roomCodeInput = document.getElementById('room-code') as HTMLInputElement;
+const serverUrlInput = document.getElementById('server-url') as HTMLInputElement;
 const connectBtn = document.getElementById('connect-btn')!;
 const calibrateBtn = document.getElementById('calibrate-btn')!;
 const disconnectBtn = document.getElementById('disconnect-btn')!;
@@ -126,10 +127,16 @@ async function handlePermissionRequest(): Promise<void> {
 
 function handleConnect(): void {
   const roomCode = roomCodeInput.value.trim().toUpperCase();
+  const serverUrl = serverUrlInput.value.trim();
   
   if (roomCode.length !== 4) {
     alert('Please enter a 4-character room code');
     return;
+  }
+  
+  // Set server URL if provided
+  if (serverUrl) {
+    wsManager.setServerUrl(serverUrl);
   }
   
   wsManager.connect(roomCode);

@@ -26,9 +26,13 @@ export class WebSocketServer {
    * Get WebSocket server URL
    */
   private getServerUrl(): string {
-    // Use deployed URL if set, otherwise fall back to local development
+    // Use deployed URL if set via env var
     if (import.meta.env.VITE_WS_URL) {
       return import.meta.env.VITE_WS_URL;
+    }
+    // Production default (Railway)
+    if (window.location.hostname.includes('railway.app')) {
+      return 'wss://paddlelinkserver-production.up.railway.app';
     }
     // Local development fallback
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
