@@ -16,8 +16,11 @@ export class WebSocketManager {
    * Get the WebSocket server URL
    */
   private getServerUrl(): string {
-    // In development, connect to local server
-    // In production, use the deployed server URL
+    // Use deployed URL if set, otherwise fall back to local development
+    if (import.meta.env.VITE_WS_URL) {
+      return import.meta.env.VITE_WS_URL;
+    }
+    // Local development fallback
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = import.meta.env.VITE_WS_HOST || window.location.hostname;
     const port = import.meta.env.VITE_WS_PORT || NETWORK.DEFAULT_PORT;
