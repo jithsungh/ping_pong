@@ -338,8 +338,19 @@ export class Game3D {
   }
   
   private render(): void {
-    const ball = this.physics.getBall();
+    // Use direct 3D coordinates from physics
+    const ball3d = this.physics.getBall3D();
     
+    // Set ball position directly in world coordinates
+    this.scene.setBall3D(
+      ball3d.position.x,
+      ball3d.position.y,
+      ball3d.position.z,
+      ball3d.visible
+    );
+    
+    // Also pass normalized state for paddle updates
+    const ball = this.physics.getBall();
     const state: RenderState3D = {
       ball: { 
         x: ball.x, 

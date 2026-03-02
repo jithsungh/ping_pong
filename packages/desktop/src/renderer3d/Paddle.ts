@@ -49,8 +49,9 @@ export class Paddle {
     this.group.add(this.paddle);
     
     // Set base rotation so paddle face is vertical and facing opponent
-    // When phone is held flat, paddle should face forward
-    this.baseRotation.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
+    // When phone is held flat, paddle should face forward (toward -Z)
+    // Rotate -90 around X to stand up, then 180 around Z to flip red side forward
+    this.baseRotation.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, Math.PI));
   }
   
   private createPaddle(): void {

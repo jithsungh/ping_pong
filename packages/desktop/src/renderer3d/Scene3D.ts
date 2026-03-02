@@ -227,7 +227,7 @@ export class Scene3D {
     // Y: height above table
     const ballX = (state.ball.x - 0.5) * 1.525; // Table width
     const ballZ = (state.ball.y - 0.5) * 2.74;  // Table length (y in 2D = z in 3D)
-    const ballY = 0.76 + 0.15 + (state.ball.z || 0) * 0.5; // Table height + ball height
+    const ballY = 0.76 + (state.ball.z || 0) * 0.5; // Table height + ball height offset
     
     this.ball.setPosition(ballX, ballY, ballZ);
     this.ball.setVisible(state.ball.visible);
@@ -241,6 +241,14 @@ export class Scene3D {
     
     // Render scene
     this.renderer.render(this.scene, this.camera);
+  }
+  
+  /**
+   * Set ball position directly in 3D world coordinates
+   */
+  setBall3D(x: number, y: number, z: number, visible: boolean): void {
+    this.ball.setPosition(x, y, z);
+    this.ball.setVisible(visible);
   }
   
   /**
