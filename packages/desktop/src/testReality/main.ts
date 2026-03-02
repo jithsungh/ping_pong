@@ -56,21 +56,6 @@ function debugLog(msg: string, level: 'info' | 'warn' | 'error' = 'info'): void 
 }
 
 // ========================================
-// Debug logging
-// ========================================
-function debugLog(msg: string, level: 'info' | 'warn' | 'error' = 'info'): void {
-  const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-  const line = document.createElement('div');
-  line.className = level === 'error' ? 'log-error' : level === 'warn' ? 'log-warn' : 'log-info';
-  line.textContent = `[${time}] ${msg}`;
-  debugLogEl.appendChild(line);
-  // Keep only last 30 lines
-  while (debugLogEl.children.length > 30) debugLogEl.removeChild(debugLogEl.firstChild!);
-  debugLogEl.scrollTop = debugLogEl.scrollHeight;
-  console.log(`[TestReality] ${msg}`);
-}
-
-// ========================================
 // WebSocket
 // ========================================
 
@@ -177,8 +162,6 @@ function connect(): void {
         if (msgCount === 0) debugLog(`First pose data received`);
         if (msgCount === 0) debugLog(`First pose data received`);
         handlePose(msg as PoseMessage);
-      } else {
-        debugLog(`Unknown msg type: ${msg.type}`, 'warn');
       } else {
         debugLog(`Unknown msg type: ${msg.type}`, 'warn');
       }
