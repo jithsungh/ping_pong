@@ -47,6 +47,9 @@ export class Physics3D {
   private netHit = false;
   private waitingForServe = true;       // Freeze physics until serve starts
   
+  // Ball offset from paddle during serve (ball sits in front of paddle face)
+  private serveBallOffset = { x: 0, y: 0.05, z: -0.08 };
+  
   // Collision callbacks for sound effects
   private onTableBounce: (() => void) | null = null;
   private onNetHit: (() => void) | null = null;
@@ -91,6 +94,26 @@ export class Physics3D {
       spin: { x: 0, y: 0, z: 0 },
       visible: false
     };
+  }
+  
+  /**
+   * Update ball position to follow paddle during serve
+   * Called every frame when waitingForServe is true
+   */
+  updateServeBallPosition(paddleX: number, paddleY: number, paddleZ: number): void {
+    if (!this.waitingForServe || !this.ball.visible) return;
+    
+    // Ball sits in front of and slightly above the paddle
+    this.ball.position.x = paddleX + this.serveBallOffset.x;
+    this.ball.position.y = paddleY + this.serveBallOffset.y;
+    this.ball.position.z = paddleZ + this.serveBallOffset.z;
+  }
+  
+  /**
+   * Check if we're in serve-wait mode
+   */
+  isWaitingForServe(): boolean {
+    return this.waitingForServe;
   }
   
   /**

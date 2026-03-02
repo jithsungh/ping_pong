@@ -266,12 +266,12 @@ export class SensorManager {
       this.angularVelocity[2] ** 2
     );
     
-    // Threshold for swing detection (rad/s) - about 3-4 rad/s is a moderate swing
-    const ANGULAR_THRESHOLD = 3.0; // rad/s
-    const ANGULAR_MAX = 15.0;      // rad/s for max power
+    // Threshold for swing detection (rad/s) - lowered for sensitivity
+    const ANGULAR_THRESHOLD = 1.0; // rad/s - detects even gentle swings
+    const ANGULAR_MAX = 12.0;      // rad/s for max power
     
-    // Must have both angular velocity AND some acceleration
-    if (angularMagnitude < ANGULAR_THRESHOLD || accelerationMagnitude < 2.0) {
+    // Must have angular velocity (acceleration check relaxed for gentle swings)
+    if (angularMagnitude < ANGULAR_THRESHOLD || accelerationMagnitude < 0.3) {
       return;
     }
     

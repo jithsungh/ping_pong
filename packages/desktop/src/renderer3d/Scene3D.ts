@@ -220,19 +220,10 @@ export class Scene3D {
       this.resize();
     }
     
-    // Update ball position
-    // Convert normalized coords (0-1) to 3D world coords
-    // Z: 0 = opponent side, 1 = player side
-    // X: 0 = left, 1 = right
-    // Y: height above table
-    const ballX = (state.ball.x - 0.5) * 1.525; // Table width
-    const ballZ = (state.ball.y - 0.5) * 2.74;  // Table length (y in 2D = z in 3D)
-    const ballY = 0.76 + (state.ball.z || 0) * 0.5; // Table height + ball height offset
+    // Ball position is set via setBall3D() before render() is called.
+    // No need to recompute from normalized coords here.
     
-    this.ball.setPosition(ballX, ballY, ballZ);
-    this.ball.setVisible(state.ball.visible);
-    
-    // Update paddle visualization (legacy Euler mode)
+    // Update paddle visualization (legacy Euler mode fallback)
     if (state.paddleYaw !== undefined && state.paddlePitch !== undefined) {
       this.paddle.setRotation(state.paddleYaw, state.paddlePitch);
     }
@@ -241,6 +232,13 @@ export class Scene3D {
     
     // Render scene
     this.renderer.render(this.scene, this.camera);
+  }
+  
+  /**
+   * Get paddle's current world position (for ball-follows-paddle)
+   */
+  getPaddlePosition(): THREE.Vector3 {
+    return this.paddle.getWorldPosition();
   }
   
   /**
