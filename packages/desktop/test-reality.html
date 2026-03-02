@@ -133,6 +133,40 @@
     }
     .callout strong { color: #e6edf3; }
 
+    /* Calibrate button */
+    .calibrate-btn {
+      width: 100%;
+      padding: 12px;
+      background: #238636;
+      border: 1px solid #2ea043;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .calibrate-btn:hover { background: #2ea043; }
+    .calibrate-btn:active { transform: scale(0.97); }
+    .calibrate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Debug log */
+    .debug-log {
+      background: #0d1117;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 11px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: #7ee787;
+      max-height: 120px;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+    .debug-log .log-error { color: #f85149; }
+    .debug-log .log-warn { color: #d29922; }
+    .debug-log .log-info { color: #58a6ff; }
+
     /* Calibration overlay */
     .calibration-overlay {
       position: absolute;
@@ -300,16 +334,28 @@
           </div>
         </div>
 
+        <!-- Calibrate button -->
+        <div class="panel-section">
+          <button class="calibrate-btn" id="desktop-calibrate-btn" disabled>⚡ Calibrate Now</button>
+          <div style="font-size:11px; color:#484f58; margin-top:6px; text-align:center;">Place phone flat, then click (or tap on phone)</div>
+        </div>
+
+        <!-- Debug log -->
+        <div class="panel-section">
+          <h3>Debug Log</h3>
+          <div class="debug-log" id="debug-log">Initializing...</div>
+        </div>
+
         <!-- Instructions -->
         <div class="panel-section">
           <div class="callout">
             <strong>How to use:</strong><br>
             1. Open PaddleLink on your iPhone<br>
             2. Enter the room code above<br>
-            3. Place phone flat, screen up, tap <strong>Calibrate</strong><br>
+            3. Place phone flat, screen up, tap <strong>Calibrate</strong> (or click button above)<br>
             4. Pick up and move &mdash; 3D model mirrors it!<br><br>
             <strong>Tip:</strong> Drag to orbit camera, scroll to zoom.<br>
-            Re-calibrate anytime by tapping Calibrate again on phone.
+            Re-calibrate anytime.
           </div>
         </div>
       </div>

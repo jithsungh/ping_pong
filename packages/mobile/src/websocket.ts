@@ -197,6 +197,7 @@ export class WebSocketManager {
    */
   sendCalibrate(): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      console.warn('[WS] sendCalibrate: ws not open, readyState =', this.ws?.readyState);
       return;
     }
     
@@ -205,6 +206,7 @@ export class WebSocketManager {
       timestamp: performance.now()
     };
     
+    console.log('[WS] Sending calibrate message');
     this.ws.send(JSON.stringify(message));
   }
   
