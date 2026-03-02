@@ -8,8 +8,9 @@ import { audioManager } from './audio';
 // Hit timing window in milliseconds
 const HIT_WINDOW_MS = 150;
 // Angular velocity threshold for swing detection (rad/s)
-const ANGULAR_SWING_THRESHOLD = 4.0;
-const ANGULAR_SWING_MAX = 12.0;
+// Lower threshold so serves actually trigger
+const ANGULAR_SWING_THRESHOLD = 2.0;  // Lowered from 4.0 for easier swing detection
+const ANGULAR_SWING_MAX = 10.0;
 
 export class Game3D {
   private scene: Scene3D;

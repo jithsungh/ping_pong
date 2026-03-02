@@ -3,6 +3,11 @@ import * as THREE from 'three';
 const TABLE_HEIGHT = 0.76;
 const TABLE_LENGTH = 2.74;
 
+// Paddle movement bounds (relative to center)
+const PADDLE_X_RANGE = 0.6;   // Max left/right movement
+const PADDLE_Y_RANGE = 0.3;   // Max up/down movement
+const PADDLE_Z_RANGE = 0.4;   // Max forward/back movement
+
 export class Paddle {
   private group: THREE.Group;
   private paddle: THREE.Group;
@@ -13,6 +18,11 @@ export class Paddle {
   private targetQuaternion = new THREE.Quaternion();
   private currentQuaternion = new THREE.Quaternion();
   private angularVelocity = new THREE.Vector3(0, 0, 0);
+  
+  // Position tracking from phone tilt
+  private targetPosition = new THREE.Vector3(0, 0, 0);
+  private currentPosition = new THREE.Vector3(0, 0, 0);
+  private basePosition = new THREE.Vector3(0, TABLE_HEIGHT + 0.2, TABLE_LENGTH / 2 - 0.3);
   
   // Legacy Euler angles (for compatibility)
   private targetYaw = 0;
@@ -35,7 +45,7 @@ export class Paddle {
     this.createGlowRing();
     
     // Position at player's side
-    this.group.position.set(0, TABLE_HEIGHT + 0.2, TABLE_LENGTH / 2 - 0.3);
+    this.group.position.copy(this.basePosition);
     this.group.add(this.paddle);
     
     // Set base rotation so paddle face is vertical and facing opponent
@@ -124,6 +134,44 @@ export class Paddle {
     
     // Store angular velocity for swing detection
     this.angularVelocity.set(angularVel[0], angularVel[1], angularVel[2]);
+    
+    // Extract paddle position from quaternion (tilt = movement)
+    // This makes the paddle move in space based on phone orientation
+    this.updatePositionFromQuaternion();
+  }
+  
+  /**
+   * Calculate paddle position from phone orientation
+   * Tilting phone left/right moves paddle left/right
+   * Tilting phone forward/back moves paddle forward/back
+   */
+  private updatePositionFromQuaternion(): void {
+    // Extract Euler angles from quaternion for position calculation
+    const euler = new THREE.Euler();
+    euler.setFromQuaternion(this.targetQuaternion, 'YXZ');
+    
+    // Map phone tilt to paddle position
+    // gamma (Z rotation in phone coords) -> X position (left/right)
+    // beta (X rotation in phone coords) -> Z position (forward/back)
+    // alpha (Y rotation in phone coords) -> slight Y offset
+    
+    // X position: tilt phone left/right to move paddle
+    // euler.z corresponds to phone roll (gamma)
+    const xOffset = Math.sin(euler.z) * PADDLE_X_RANGE * 2;
+    
+    // Z position: tilt phone forward/back  
+    // euler.x corresponds to phone pitch (beta)
+    const zOffset = -Math.sin(euler.x) * PADDLE_Z_RANGE;
+    
+    // Y position: slight height adjustment based on orientation
+    const yOffset = Math.cos(euler.x) * PADDLE_Y_RANGE * 0.3 - PADDLE_Y_RANGE * 0.15;
+    
+    // Clamp to valid range
+    this.targetPosition.set(
+      Math.max(-PADDLE_X_RANGE, Math.min(PADDLE_X_RANGE, xOffset)),
+      Math.max(-PADDLE_Y_RANGE, Math.min(PADDLE_Y_RANGE, yOffset)),
+      Math.max(-PADDLE_Z_RANGE, Math.min(PADDLE_Z_RANGE, zOffset))
+    );
   }
   
   /**
@@ -183,6 +231,17 @@ export class Paddle {
       const combined = new THREE.Quaternion();
       combined.multiplyQuaternions(this.baseRotation, this.currentQuaternion);
       this.paddle.quaternion.copy(combined);
+      
+      // Smoothly move paddle position based on phone tilt
+      const posLerpSpeed = 10 * deltaTime;
+      this.currentPosition.lerp(this.targetPosition, Math.min(1, posLerpSpeed));
+      
+      // Apply position offset to group
+      this.group.position.set(
+        this.basePosition.x + this.currentPosition.x,
+        this.basePosition.y + this.currentPosition.y,
+        this.basePosition.z + this.currentPosition.z
+      );
     } else {
       // Legacy Euler mode
       const lerpSpeed = 12 * deltaTime;
@@ -201,6 +260,13 @@ export class Paddle {
       
       // Update currentQuaternion for direction calculations
       this.currentQuaternion.setFromEuler(this.paddle.rotation);
+      
+      // Also move paddle based on yaw/pitch in legacy mode
+      this.group.position.set(
+        this.basePosition.x + Math.sin(yawRad) * PADDLE_X_RANGE * 0.5,
+        this.basePosition.y,
+        this.basePosition.z + Math.sin(pitchRad) * PADDLE_Z_RANGE * 0.3
+      );
     }
     
     // Swing animation decay
@@ -249,6 +315,20 @@ export class Paddle {
       }
     };
     setTimeout(fadeOut, 50);
+  }
+  
+  /**
+   * Get paddle's current world position
+   */
+  getWorldPosition(): THREE.Vector3 {
+    return this.group.position.clone();
+  }
+  
+  /**
+   * Get paddle's current position offset from base
+   */
+  getPositionOffset(): THREE.Vector3 {
+    return this.currentPosition.clone();
   }
   
   getMesh(): THREE.Group {
