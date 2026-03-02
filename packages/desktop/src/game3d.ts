@@ -87,6 +87,12 @@ export class Game3D {
   // ========================================
   
   start(): void {
+    // Cancel any existing game loop
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
+    }
+    
     this.score = { player: 0, opponent: 0 };
     this.server = 'player';
     this.serveCount = 0;

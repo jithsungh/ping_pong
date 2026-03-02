@@ -45,7 +45,9 @@ export class Physics3D {
   private playerMissed = false;
   private opponentMissed = false;
   private netHit = false;
+  private netHitBy: 'player' | 'opponent' | null = null; // Who hit ball into net
   private waitingForServe = true;       // Freeze physics until serve starts
+  private lastHitter: 'player' | 'opponent' = 'player'; // Track who hit last
   
   // Ball offset from paddle during serve (ball sits in front of paddle face)
   private serveBallOffset = { x: 0, y: 0.05, z: -0.08 };
@@ -124,6 +126,8 @@ export class Physics3D {
     this.playerMissed = false;
     this.opponentMissed = false;
     this.netHit = false;
+    this.netHitBy = null;
+    this.lastHitter = server;
     this.waitingForServe = true;  // Ball frozen until serve starts
     this.rallyStartTime = 0; // Reset rally timer
     
@@ -179,6 +183,7 @@ export class Physics3D {
       this.waitingForServe = false;
       this.rallyStartTime = performance.now();
     }
+    this.lastHitter = 'player';
     
     // Intent-based mapping - tuned for realistic ping pong
     const POWER_SCALE = 4.5;       // Reduced for more controllable speed
@@ -232,6 +237,7 @@ export class Physics3D {
       this.waitingForServe = false;
       this.rallyStartTime = performance.now();
     }
+    this.lastHitter = 'player';
     
     // Power scaling - feel-good curve
     const POWER_SCALE = 4.0;
@@ -288,6 +294,7 @@ export class Physics3D {
    * Apply opponent hit to ball
    */
   applyOpponentHit(power: number, angle: number, spin: number): void {
+    this.lastHitter = 'opponent';
     const POWER_SCALE = 4.0;  // Slightly lower than player for balance
     const shotPower = Math.min(1.0, Math.max(0.4, power)) * POWER_SCALE;
     const angleRad = (angle * Math.PI) / 180;
@@ -411,19 +418,23 @@ export class Physics3D {
   }
   
   private checkNetCollision(): void {
-    // Net is at Z = 0
-    const wasOnOpponentSide = this.ball.velocity.z < 0 && this.ball.position.z > 0;
-    const wasOnPlayerSide = this.ball.velocity.z > 0 && this.ball.position.z < 0;
+    // Net is at Z = 0, extends from table height to table height + netHeight
+    const netTop = TABLE.height + TABLE.netHeight;
     
-    // Check if crossing net plane
-    if ((wasOnOpponentSide && this.ball.position.z <= 0) ||
-        (wasOnPlayerSide && this.ball.position.z >= 0)) {
+    // Only check when ball is near the net plane and below net height
+    if (Math.abs(this.ball.position.z) < 0.05 && 
+        this.ball.position.y < netTop &&
+        this.ball.position.y > TABLE.height - 0.05) {
       
-      // Check if ball is below net height
-      if (this.ball.position.y < TABLE.height + TABLE.netHeight) {
+      // Ball is at the net plane and below net height = net hit
+      if (!this.netHit) {
         this.netHit = true;
-        // Ball hits net - stop it
-        this.ball.velocity = { x: 0, y: -1, z: 0 };
+        this.netHitBy = this.lastHitter;
+        
+        // Ball bounces back slightly and falls
+        this.ball.velocity.z = -this.ball.velocity.z * 0.1; // Weak bounce back
+        this.ball.velocity.y = -0.5; // Falls down
+        this.ball.velocity.x *= 0.3;
         
         // Trigger sound callback
         this.onNetHit?.();
@@ -432,26 +443,47 @@ export class Physics3D {
   }
   
   private checkBoundaries(): void {
-    // Ball went past player's end
+    // Ball went past player's end (positive Z = player side)
     if (this.ball.position.z > TABLE.length / 2 + 1) {
-      this.playerMissed = true;
+      if (!this.playerMissed && !this.opponentMissed) {
+        this.playerMissed = true;
+      }
     }
     
-    // Ball went past opponent's end
+    // Ball went past opponent's end (negative Z = opponent side)
     if (this.ball.position.z < -TABLE.length / 2 - 1) {
-      this.opponentMissed = true;
+      if (!this.playerMissed && !this.opponentMissed) {
+        this.opponentMissed = true;
+      }
     }
     
     // Ball went too far to the sides
     if (Math.abs(this.ball.position.x) > TABLE.width + 1) {
-      this.determinePointWinner();
+      if (!this.playerMissed && !this.opponentMissed) {
+        // Last hitter is at fault for out-of-bounds
+        if (this.lastHitter === 'player') {
+          this.playerMissed = true;
+        } else {
+          this.opponentMissed = true;
+        }
+      }
+    }
+    
+    // Ball fell below floor
+    if (this.ball.position.y < -0.5) {
+      if (!this.playerMissed && !this.opponentMissed) {
+        // Assign point based on ball position or who hit last
+        if (this.ball.position.z > 0) {
+          this.playerMissed = true;
+        } else {
+          this.opponentMissed = true;
+        }
+      }
     }
     
     // Rally timeout - prevent infinite rallies
     if (this.rallyStartTime > 0 && 
         performance.now() - this.rallyStartTime > MAX_RALLY_TIME_MS) {
-      // Force point end - whoever had it last loses
-      // Determine based on ball position
       if (this.ball.position.z > 0) {
         this.playerMissed = true;
       } else {
@@ -461,8 +493,27 @@ export class Physics3D {
   }
   
   private determinePointWinner(): void {
-    // Reset ball visibility
-    this.ball.visible = false;
+    // Only determine once
+    if (this.playerMissed || this.opponentMissed || this.netHit) {
+      return; // Already determined
+    }
+    
+    // Determine who loses the point based on ball position and lastHitter
+    // Ball on player's side (z > 0) = player lost it
+    // Ball on opponent's side (z < 0) = opponent lost it
+    // Ball near center = last hitter is at fault (they hit it poorly)
+    if (this.ball.position.z > 0.1) {
+      this.playerMissed = true;
+    } else if (this.ball.position.z < -0.1) {
+      this.opponentMissed = true;
+    } else {
+      // Near the net - person who hit it last is at fault
+      if (this.lastHitter === 'player') {
+        this.playerMissed = true;
+      } else {
+        this.opponentMissed = true;
+      }
+    }
     
     // Trigger out sound
     this.onOut?.();
@@ -505,11 +556,11 @@ export class Physics3D {
   }
   
   isPlayerMiss(): boolean {
-    return this.playerMissed || (this.netHit && this.ball.velocity.z < 0);
+    return this.playerMissed || (this.netHit && this.netHitBy === 'player');
   }
   
   isOpponentMiss(): boolean {
-    return this.opponentMissed || (this.netHit && this.ball.velocity.z > 0);
+    return this.opponentMissed || (this.netHit && this.netHitBy === 'opponent');
   }
   
   /**
@@ -519,6 +570,7 @@ export class Physics3D {
     this.playerMissed = false;
     this.opponentMissed = false;
     this.netHit = false;
+    this.netHitBy = null;
   }
   
   hideBall(): void {

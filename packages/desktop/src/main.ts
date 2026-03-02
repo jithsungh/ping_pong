@@ -17,6 +17,7 @@ const connectionInfoEl = document.getElementById('connection-info')!;
 const winnerTextEl = document.getElementById('winner-text')!;
 const finalScoreEl = document.getElementById('final-score')!;
 const rematchBtn = document.getElementById('rematch-btn')!;
+const restartBtn = document.getElementById('restart-btn')!;
 const gameCanvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 
 // Game instance (3D)
@@ -147,6 +148,16 @@ function init(): void {
     audioManager.resume();
     gameOverOverlay.classList.remove('active');
     game?.start();
+  });
+  
+  // Restart button (during gameplay, without page refresh)
+  restartBtn.addEventListener('click', () => {
+    audioManager.resume();
+    gameOverOverlay.classList.remove('active');
+    game?.start();
+    // Reset displayed scores
+    playerScoreEl.textContent = '0';
+    opponentScoreEl.textContent = '0';
   });
   
   // Keyboard controls for testing (without phone)
