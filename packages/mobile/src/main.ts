@@ -173,7 +173,7 @@ function handleConnect(): void {
 }
 
 function handleDisconnect(): void {
-  wsManager.disconnect();
+  wsManager.leaveRoom();
   showScreen('connect');
 }
 
@@ -246,11 +246,29 @@ function init(): void {
   // Check if we need permission or can start directly
   // On Android/desktop, permission is usually not required
   if (typeof (DeviceMotionEvent as any).requestPermission !== 'function') {
-    // No permission needed, start sensors and show connect screen
-    showScreen('connect');
+    // No permission needed, start sensors
     sensorManager.start();
     sensorManager.onSensorUpdate(handleSensorUpdate);
     sensorManager.onSwing(handleSwing);
+    sensorManager.onPose(handlePose);
+    
+    // Check for saved room to auto-reconnect on refresh
+    const savedRoom = wsManager.getSavedRoom();
+    if (savedRoom) {
+      const savedServer = wsManager.getSavedServerUrl();
+      if (savedServer) {
+        wsManager.setServerUrl(savedServer);
+      }
+      console.log('Auto-reconnecting to saved room:', savedRoom);
+      // Pre-fill the code inputs
+      for (let i = 0; i < 4 && i < savedRoom.length; i++) {
+        codeInputs[i].value = savedRoom[i];
+      }
+      wsManager.connect(savedRoom);
+      showScreen('game');
+    } else {
+      showScreen('connect');
+    }
   } else {
     // iOS - show permission screen
     showScreen('permission');

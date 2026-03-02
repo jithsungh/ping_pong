@@ -64,15 +64,23 @@ export class WebSocketServer {
   }
   
   /**
-   * Connect and create room
+   * Connect and create room (or rejoin saved room)
    */
   connect(): void {
-    this.roomCode = this.generateRoomCode();
+    // Check if we have a saved room from a previous session
+    const savedRoom = sessionStorage.getItem('paddlelink_room');
+    if (savedRoom) {
+      this.roomCode = savedRoom;
+      console.log('Restoring saved room:', this.roomCode);
+    } else {
+      this.roomCode = this.generateRoomCode();
+      sessionStorage.setItem('paddlelink_room', this.roomCode);
+    }
     this.doConnect();
   }
   
   /**
-   * Disconnect
+   * Disconnect but keep room (for reconnect on refresh)
    */
   disconnect(): void {
     this.state = 'disconnected';
@@ -82,6 +90,22 @@ export class WebSocketServer {
       this.ws.close();
       this.ws = null;
     }
+  }
+  
+  /**
+   * Leave room permanently and clear saved state
+   */
+  leaveRoom(): void {
+    sessionStorage.removeItem('paddlelink_room');
+    this.disconnect();
+    this.roomCode = '';
+  }
+  
+  /**
+   * Check if there's a saved room to restore
+   */
+  hasSavedRoom(): boolean {
+    return !!sessionStorage.getItem('paddlelink_room');
   }
   
   /**
@@ -153,8 +177,21 @@ export class WebSocketServer {
   
   private handleClose(): void {
     console.log('WebSocket closed');
-    this.state = 'disconnected';
-    this.onStateChangeCallback?.(this.state);
+    
+    // Auto-reconnect if we still have a saved room (not intentional disconnect)
+    if (this.roomCode && sessionStorage.getItem('paddlelink_room')) {
+      this.state = 'connecting';
+      this.onStateChangeCallback?.(this.state);
+      setTimeout(() => {
+        if (this.roomCode && sessionStorage.getItem('paddlelink_room')) {
+          console.log('Auto-reconnecting to room:', this.roomCode);
+          this.doConnect();
+        }
+      }, 2000);
+    } else {
+      this.state = 'disconnected';
+      this.onStateChangeCallback?.(this.state);
+    }
   }
   
   private handleError(event: Event): void {

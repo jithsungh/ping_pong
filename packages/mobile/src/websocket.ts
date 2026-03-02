@@ -67,11 +67,18 @@ export class WebSocketManager {
   connect(roomCode: string): void {
     this.roomCode = roomCode.toUpperCase();
     this.reconnectAttempts = 0;
+    
+    // Persist room code and server URL for reconnect on refresh
+    sessionStorage.setItem('paddlelink_mobile_room', this.roomCode);
+    if (this.serverUrl) {
+      sessionStorage.setItem('paddlelink_mobile_server', this.serverUrl);
+    }
+    
     this.doConnect();
   }
   
   /**
-   * Disconnect from server
+   * Disconnect from server (keeps room saved for auto-reconnect)
    */
   disconnect(): void {
     this.state = 'disconnected';
@@ -81,6 +88,30 @@ export class WebSocketManager {
       this.ws.close();
       this.ws = null;
     }
+  }
+  
+  /**
+   * Leave room permanently and clear saved state
+   */
+  leaveRoom(): void {
+    sessionStorage.removeItem('paddlelink_mobile_room');
+    sessionStorage.removeItem('paddlelink_mobile_server');
+    this.disconnect();
+    this.roomCode = '';
+  }
+  
+  /**
+   * Get saved room code from previous session
+   */
+  getSavedRoom(): string | null {
+    return sessionStorage.getItem('paddlelink_mobile_room');
+  }
+  
+  /**
+   * Get saved server URL from previous session
+   */
+  getSavedServerUrl(): string | null {
+    return sessionStorage.getItem('paddlelink_mobile_server');
   }
   
   /**
@@ -204,7 +235,8 @@ export class WebSocketManager {
   private handleClose(event: CloseEvent): void {
     console.log('WebSocket closed:', event.code, event.reason);
     
-    if (this.state !== 'disconnected') {
+    // Auto-reconnect if we still have a saved room
+    if (this.state !== 'disconnected' || sessionStorage.getItem('paddlelink_mobile_room')) {
       this.scheduleReconnect();
     }
   }

@@ -248,6 +248,10 @@
           <div>YOU</div>
           <div class="score-value" id="player-score">0</div>
         </div>
+        <div style="display:flex; flex-direction:column; gap:6px; justify-content:center;">
+          <button id="restart-btn" style="background:#FF6F00; color:#fff; border:none; padding:8px 18px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:bold;">Restart</button>
+          <button id="leave-room-btn" style="background:#555; color:#fff; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:11px;">Leave Room</button>
+        </div>
       </div>
       
       <canvas id="game-canvas"></canvas>
@@ -256,7 +260,6 @@
         <span>Room: <span id="room-code-small">----</span></span>
         <span id="connection-info">Connected</span>
         <span>First to 11 points</span>
-        <button id="restart-btn" style="background:#444; color:#fff; border:none; padding:4px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Restart</button>
       </div>
     </div>
     

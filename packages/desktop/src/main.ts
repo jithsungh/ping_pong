@@ -18,6 +18,7 @@ const winnerTextEl = document.getElementById('winner-text')!;
 const finalScoreEl = document.getElementById('final-score')!;
 const rematchBtn = document.getElementById('rematch-btn')!;
 const restartBtn = document.getElementById('restart-btn')!;
+const leaveRoomBtn = document.getElementById('leave-room-btn')!;
 const gameCanvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 
 // Game instance (3D)
@@ -92,6 +93,8 @@ function handleConnectionStateChange(state: string): void {
   
   if (state === 'waiting') {
     waitingStatusEl.classList.remove('connected');
+    // If we have a saved room, show the start screen with waiting status
+    // (user refreshed the page, room code already displayed)
   }
   
   if (state === 'connected') {
@@ -158,6 +161,18 @@ function init(): void {
     // Reset displayed scores
     playerScoreEl.textContent = '0';
     opponentScoreEl.textContent = '0';
+  });
+  
+  // Leave room button - clears saved room and goes back to start screen
+  leaveRoomBtn.addEventListener('click', () => {
+    game?.stop();
+    wsServer.leaveRoom();
+    showStartScreen();
+    // Reconnect with a fresh room
+    wsServer.connect();
+    const newCode = wsServer.getRoomCode();
+    roomCodeEl.textContent = newCode;
+    roomCodeSmallEl.textContent = newCode;
   });
   
   // Keyboard controls for testing (without phone)
