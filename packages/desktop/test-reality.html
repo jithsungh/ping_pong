@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PaddleLink — Test Reality Room</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; color: #e6edf3; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif; }
+
+    #app { width: 100%; height: 100%; display: flex; flex-direction: column; }
+
+    /* ── Top bar ────────────────────────────────── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      z-index: 10;
+    }
+    .top-bar h1 { font-size: 18px; font-weight: 600; color: #58a6ff; letter-spacing: 0.5px; }
+    .top-bar .subtitle { font-size: 12px; color: #8b949e; margin-left: 12px; }
+    .nav-link {
+      font-size: 13px; color: #8b949e; text-decoration: none;
+      padding: 6px 14px; border-radius: 6px; border: 1px solid #30363d;
+      transition: all 0.2s;
+    }
+    .nav-link:hover { color: #58a6ff; border-color: #58a6ff; }
+
+    /* ── Main content ──────────────────────────── */
+    .content { flex: 1; display: flex; position: relative; overflow: hidden; }
+
+    #room-canvas { flex: 1; display: block; }
+
+    /* ── Side panel ────────────────────────────── */
+    .side-panel {
+      width: 280px;
+      background: #161b22;
+      border-left: 1px solid #30363d;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .panel-section { margin-bottom: 0; }
+    .panel-section h3 {
+      font-size: 11px; font-weight: 600; color: #8b949e;
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+    }
+
+    /* Room code display */
+    .room-code-box {
+      background: #0d1117;
+      border: 2px solid #30363d;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .room-code-box label { display: block; font-size: 10px; color: #8b949e; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
+    .room-code {
+      font-size: 40px; font-weight: 700; letter-spacing: 8px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: #ff7b00;
+    }
+
+    /* Connection indicator */
+    .connection-row { display: flex; align-items: center; gap: 8px; }
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #f85149; flex-shrink: 0;
+      box-shadow: 0 0 6px #f85149;
+      transition: all 0.3s;
+    }
+    .status-dot.connected { background: #3fb950; box-shadow: 0 0 8px #3fb950; }
+    #status-text { font-size: 13px; color: #8b949e; }
+    #waiting-status { font-size: 12px; color: #8b949e; margin-top: 6px; line-height: 1.5; }
+    #waiting-status.connected { color: #3fb950; }
+
+    /* Data readouts */
+    .data-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .data-cell {
+      background: #0d1117;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .data-cell.wide { grid-column: 1 / -1; }
+    .data-label { font-size: 10px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; }
+    .data-value {
+      font-size: 16px; font-weight: 600;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: #e6edf3;
+      margin-top: 2px;
+    }
+    .data-value.alpha { color: #ff7b72; }
+    .data-value.beta { color: #79c0ff; }
+    .data-value.gamma { color: #7ee787; }
+    .data-value.accel { color: #d2a8ff; }
+
+    /* Stats bar */
+    .stats-row {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: #484f58;
+      padding: 8px 0;
+      border-top: 1px solid #21262d;
+    }
+
+    /* Axis legend */
+    .axis-legend { display: flex; gap: 12px; font-size: 11px; padding: 4px 0; }
+    .axis-legend span { display: flex; align-items: center; gap: 4px; }
+    .axis-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .axis-dot.x { background: #ff4444; }
+    .axis-dot.y { background: #44ff44; }
+    .axis-dot.z { background: #4444ff; }
+
+    /* Instructions callout */
+    .callout {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #8b949e;
+    }
+    .callout strong { color: #e6edf3; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Top bar -->
+    <div class="top-bar">
+      <div style="display:flex; align-items:baseline;">
+        <h1>Test Reality</h1>
+        <span class="subtitle">iPhone 12 Orientation Mirror</span>
+      </div>
+      <a href="/" class="nav-link">&larr; Back to Game</a>
+    </div>
+
+    <!-- Main -->
+    <div class="content">
+      <canvas id="room-canvas"></canvas>
+
+      <!-- Side panel -->
+      <div class="side-panel">
+        <!-- Room code -->
+        <div class="panel-section">
+          <div class="room-code-box">
+            <label>Room Code</label>
+            <div class="room-code" id="room-code">----</div>
+          </div>
+        </div>
+
+        <!-- Connection status -->
+        <div class="panel-section">
+          <h3>Connection</h3>
+          <div class="connection-row">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">Connecting...</span>
+          </div>
+          <div id="waiting-status">Generating room code...</div>
+        </div>
+
+        <!-- Orientation data -->
+        <div class="panel-section">
+          <h3>Device Orientation</h3>
+          <div class="data-grid">
+            <div class="data-cell">
+              <div class="data-label">&alpha; (Yaw)</div>
+              <div class="data-value alpha" id="val-alpha">--</div>
+            </div>
+            <div class="data-cell">
+              <div class="data-label">&beta; (Pitch)</div>
+              <div class="data-value beta" id="val-beta">--</div>
+            </div>
+            <div class="data-cell">
+              <div class="data-label">&gamma; (Roll)</div>
+              <div class="data-value gamma" id="val-gamma">--</div>
+            </div>
+            <div class="data-cell">
+              <div class="data-label">Accel X</div>
+              <div class="data-value accel" id="val-ax">--</div>
+            </div>
+            <div class="data-cell">
+              <div class="data-label">Accel Y</div>
+              <div class="data-value accel" id="val-ay">--</div>
+            </div>
+            <div class="data-cell">
+              <div class="data-label">Accel Z</div>
+              <div class="data-value accel" id="val-az">--</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Axes legend -->
+        <div class="panel-section">
+          <div class="axis-legend">
+            <span><span class="axis-dot x"></span> X</span>
+            <span><span class="axis-dot y"></span> Y</span>
+            <span><span class="axis-dot z"></span> Z</span>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="panel-section">
+          <div class="stats-row">
+            <span>FPS: <strong id="val-fps">--</strong></span>
+            <span>Msgs: <strong id="val-msgs">0</strong></span>
+          </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="panel-section">
+          <div class="callout">
+            <strong>How to use:</strong><br>
+            1. Open PaddleLink on your iPhone<br>
+            2. Enter the room code above<br>
+            3. Move your phone &mdash; the 3D model mirrors it<br><br>
+            <strong>Tip:</strong> Drag to orbit camera, scroll to zoom
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/testReality/main.ts"></script>
+</body>
+</html>

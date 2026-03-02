@@ -59,13 +59,23 @@ export interface GameOverMessage {
   finalScore: Score;
 }
 
+/** Client -> Server: Raw orientation stream (for test reality room) */
+export interface OrientationMessage {
+  type: 'orientation';
+  alpha: number;   // Z-axis rotation (0-360) — compass heading
+  beta: number;    // X-axis rotation (-180 to 180) — front/back tilt
+  gamma: number;   // Y-axis rotation (-90 to 90) — left/right tilt
+  accel: { x: number; y: number; z: number };  // Acceleration incl. gravity
+  timestamp: number;
+}
+
 /** Client -> Server: Request new game */
 export interface RematchMessage {
   type: 'rematch';
 }
 
 // Union type for all messages
-export type ClientMessage = JoinMessage | PoseMessage | SwingMessage | RematchMessage;
+export type ClientMessage = JoinMessage | PoseMessage | SwingMessage | OrientationMessage | RematchMessage;
 export type ServerMessage = GameStateMessage | ConnectionMessage | PointMessage | GameOverMessage;
 export type Message = ClientMessage | ServerMessage;
 

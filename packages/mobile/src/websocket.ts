@@ -1,5 +1,5 @@
 import { NETWORK } from '@paddlelink/shared';
-import type { SwingMessage, PoseMessage, ClientMessage, ServerMessage } from '@paddlelink/shared';
+import type { SwingMessage, PoseMessage, OrientationMessage, ClientMessage, ServerMessage } from '@paddlelink/shared';
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'waiting' | 'ready';
 
@@ -12,6 +12,7 @@ export class WebSocketManager {
   
   // Pose streaming throttle
   private lastPoseSendTime = 0;
+  private lastOrientationSendTime = 0;
   private POSE_SEND_INTERVAL = 16; // ~60Hz
   
   private onStateChangeCallback: ((state: ConnectionState, message?: string) => void) | null = null;
@@ -157,6 +158,34 @@ export class WebSocketManager {
       type: 'pose',
       q: quaternion,
       angularVel: angularVelocity,
+      timestamp: now
+    };
+    
+    this.ws.send(JSON.stringify(message));
+  }
+  
+  /**
+   * Send raw orientation data (for test reality room)
+   * Streams alpha/beta/gamma + acceleration at ~30Hz
+   */
+  sendOrientation(alpha: number, beta: number, gamma: number, accel: { x: number; y: number; z: number }): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    
+    // Throttle to ~30Hz (test room doesn't need 60Hz)
+    const now = performance.now();
+    if (now - this.lastOrientationSendTime < 33) {
+      return;
+    }
+    this.lastOrientationSendTime = now;
+    
+    const message: OrientationMessage = {
+      type: 'orientation',
+      alpha,
+      beta,
+      gamma,
+      accel,
       timestamp: now
     };
     

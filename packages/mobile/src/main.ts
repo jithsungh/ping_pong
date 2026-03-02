@@ -67,6 +67,14 @@ function handleSensorUpdate(data: SensorData): void {
   
   accelValue.textContent = magnitude.toFixed(1);
   swingCountEl.textContent = String(sensorManager.getSwingCount());
+  
+  // Also stream raw orientation for test reality room
+  wsManager.sendOrientation(
+    data.rotation.alpha,
+    data.rotation.beta,
+    data.rotation.gamma,
+    data.acceleration
+  );
 }
 
 function handleSwing(swing: SwingDetection): void {
