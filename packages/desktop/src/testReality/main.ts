@@ -32,6 +32,7 @@ const debugLogEl = document.getElementById('debug-log')!;
 let ws: WebSocket | null = null;
 let roomCode = '';
 let msgCount = 0;
+let dataReceived = false;
 let lastFrameTime = performance.now();
 let frameTimes: number[] = [];
 
@@ -49,10 +50,24 @@ function debugLog(msg: string, level: 'info' | 'warn' | 'error' = 'info'): void 
   line.className = level === 'error' ? 'log-error' : level === 'warn' ? 'log-warn' : 'log-info';
   line.textContent = `[${time}] ${msg}`;
   debugLogEl.appendChild(line);
-  // Keep only last 30 lines
   while (debugLogEl.children.length > 30) debugLogEl.removeChild(debugLogEl.firstChild!);
   debugLogEl.scrollTop = debugLogEl.scrollHeight;
   console.log(`[TestReality] ${msg}`);
+}
+
+// ========================================
+// Calibrate helpers
+// ========================================
+function showCalibrateButtons(): void {
+  desktopCalibrateBtn.disabled = false;
+  overlayCalibrateBtn.classList.add('visible');
+  overlayHint.classList.add('visible');
+}
+
+function hideCalibrateButtons(): void {
+  desktopCalibrateBtn.disabled = true;
+  overlayCalibrateBtn.classList.remove('visible');
+  overlayHint.classList.remove('visible');
 }
 
 // ========================================
@@ -61,11 +76,9 @@ function debugLog(msg: string, level: 'info' | 'warn' | 'error' = 'info'): void 
 
 function getServerUrl(): string {
   if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
-  // Production Railway deployment — server is a separate service
   if (window.location.hostname.includes('railway.app')) {
     return 'wss://paddlelinkserver-production.up.railway.app';
   }
-  // Local development fallback
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = import.meta.env.VITE_WS_HOST || window.location.hostname;
   const port = import.meta.env.VITE_WS_PORT || NETWORK.DEFAULT_PORT;
@@ -86,7 +99,6 @@ function setStatus(connected: boolean, text: string): void {
 }
 
 function connect(): void {
-  // Re-use the game's room code if available, then test room's own, then generate new
   const savedGame = sessionStorage.getItem('paddlelink_room');
   const savedTest = sessionStorage.getItem('paddlelink_test_room');
   roomCode = savedGame || savedTest || generateRoomCode();
@@ -94,8 +106,6 @@ function connect(): void {
   roomCodeEl.textContent = roomCode;
 
   const url = getServerUrl();
-  console.log('[TestReality] Connecting to:', url);
-  debugLog(`Connecting to ${url}...`);
   debugLog(`Connecting to ${url}...`);
   setStatus(false, 'Connecting...');
 
@@ -103,11 +113,9 @@ function connect(): void {
 
   ws.onopen = () => {
     debugLog(`WS opened, joining room ${roomCode} as display`);
-    debugLog(`WS opened, joining room ${roomCode} as display`);
     setStatus(false, 'Waiting for phone...');
     waitingEl.textContent = 'Open PaddleLink on iPhone and enter the room code';
 
-    // Join room as display
     ws!.send(JSON.stringify({
       type: 'join',
       roomCode,
@@ -121,58 +129,55 @@ function connect(): void {
 
       if (msg.type === 'connected') {
         debugLog('Phone connected! Waiting for calibration...');
-        debugLog('Phone connected! Waiting for calibration...');
         setStatus(true, 'Phone connected!');
-        calibrationStatus.textContent = 'Phone connected! Place it flat on a table, screen facing up, then tap "Calibrate" on your iPhone.';
+        calibrationStatus.textContent = 'Phone connected! Place it flat, screen up, then tap Calibrate — or click the button below.';
         calibrationIcon.textContent = '📱';
         waitingEl.textContent = 'Waiting for calibration...';
         waitingEl.classList.add('connected');
-        desktopCalibrateBtn.disabled = false;
-        desktopCalibrateBtn.disabled = false;
+        // Show calibrate buttons immediately on connect
+        showCalibrateButtons();
       } else if (msg.type === 'waiting') {
-        debugLog('Server says: waiting for phone');
         debugLog('Server says: waiting for phone');
         setStatus(false, 'Waiting for phone...');
         calibrationStatus.textContent = 'Waiting for phone to connect...';
         calibrationIcon.textContent = '📡';
-        desktopCalibrateBtn.disabled = true;
-        desktopCalibrateBtn.disabled = true;
+        hideCalibrateButtons();
       } else if (msg.type === 'opponentDisconnected') {
         debugLog('Phone disconnected!', 'warn');
-        debugLog('Phone disconnected!', 'warn');
         setStatus(false, 'Phone disconnected');
-        waitingEl.textContent = 'Phone disconnected \u2014 reconnect to continue';
+        waitingEl.textContent = 'Phone disconnected — reconnect to continue';
         waitingEl.classList.remove('connected');
         calibrationOverlay.classList.remove('hidden');
         calibrationStatus.textContent = 'Phone disconnected. Reconnect to continue.';
         calibrationIcon.textContent = '❌';
-        desktopCalibrateBtn.disabled = true;
-        desktopCalibrateBtn.disabled = true;
+        hideCalibrateButtons();
+        dataReceived = false;
       } else if (msg.type === 'calibrate') {
-        debugLog('✓ Calibrate message received from phone!');
         debugLog('✓ Calibrate message received from phone!');
         handleCalibrate();
       } else if (msg.type === 'orientation') {
-        // Log first orientation received
-        if (msgCount === 0) debugLog(`First orientation data: α=${msg.alpha?.toFixed(1)} β=${msg.beta?.toFixed(1)} γ=${msg.gamma?.toFixed(1)}`);
-        // Log first orientation received
-        if (msgCount === 0) debugLog(`First orientation data: α=${msg.alpha?.toFixed(1)} β=${msg.beta?.toFixed(1)} γ=${msg.gamma?.toFixed(1)}`);
+        if (!dataReceived) {
+          dataReceived = true;
+          debugLog(`First orientation: α=${msg.alpha?.toFixed(1)} β=${msg.beta?.toFixed(1)} γ=${msg.gamma?.toFixed(1)}`);
+          showCalibrateButtons();
+        }
         handleOrientation(msg as OrientationMessage);
       } else if (msg.type === 'pose') {
-        if (msgCount === 0) debugLog(`First pose data received`);
-        if (msgCount === 0) debugLog(`First pose data received`);
+        if (!dataReceived) {
+          dataReceived = true;
+          debugLog('First pose data received');
+          showCalibrateButtons();
+        }
         handlePose(msg as PoseMessage);
       } else {
         debugLog(`Unknown msg type: ${msg.type}`, 'warn');
       }
     } catch (e) {
       debugLog(`Parse error: ${e}`, 'error');
-      debugLog(`Parse error: ${e}`, 'error');
     }
   };
 
   ws.onclose = () => {
-    debugLog('WS closed, reconnecting in 2s...', 'warn');
     debugLog('WS closed, reconnecting in 2s...', 'warn');
     setStatus(false, 'Reconnecting...');
     setTimeout(connect, 2000);
@@ -180,19 +185,11 @@ function connect(): void {
 
   ws.onerror = () => {
     debugLog('WS error!', 'error');
-    debugLog('WS error!', 'error');
   };
 }
 
 function handleOrientation(msg: OrientationMessage): void {
   msgCount++;
-  // Enable manual calibrate buttons once we have data
-  if (msgCount === 1) {
-    desktopCalibrateBtn.disabled = false;
-    overlayCalibrateBtn.classList.add('visible');
-    overlayHint.classList.add('visible');
-    debugLog('Orientation data flowing! You can now calibrate.');
-  }
   roomScene.updateOrientation({
     alpha: msg.alpha,
     beta: msg.beta,
@@ -203,26 +200,18 @@ function handleOrientation(msg: OrientationMessage): void {
 
 function handlePose(msg: PoseMessage): void {
   msgCount++;
-  if (msgCount === 1) {
-    desktopCalibrateBtn.disabled = false;
-    overlayCalibrateBtn.classList.add('visible');
-    overlayHint.classList.add('visible');
-    debugLog('Pose data flowing! You can now calibrate.');
-  }
   roomScene.updatePose(msg.q);
 }
 
 function handleCalibrate(): void {
   debugLog('✓ Calibrating now!');
-  debugLog('✓ Calibrating now!');
   roomScene.calibrate();
-  // Hide calibration overlay
   calibrationOverlay.classList.add('hidden');
-  waitingEl.textContent = 'Calibrated! Move your phone \u2014 the 3D model mirrors it.';
-  desktopCalibrateBtn.textContent = '\u2705 Calibrated — Re-calibrate';
+  waitingEl.textContent = 'Calibrated! Move your phone — the 3D model mirrors it.';
+  desktopCalibrateBtn.textContent = '✅ Calibrated — Re-calibrate';
 }
 
-// Manual calibrate buttons (both side panel + overlay)
+// Manual calibrate buttons (side panel + overlay)
 desktopCalibrateBtn.addEventListener('click', () => {
   debugLog('Manual calibrate clicked (side panel)');
   handleCalibrate();
@@ -238,15 +227,14 @@ overlayCalibrateBtn.addEventListener('click', () => {
 
 function updateHUD(): void {
   const debug = roomScene.getDebugData();
-  alphaEl.textContent = debug.alpha.toFixed(1) + '\u00B0';
-  betaEl.textContent = debug.beta.toFixed(1) + '\u00B0';
-  gammaEl.textContent = debug.gamma.toFixed(1) + '\u00B0';
+  alphaEl.textContent = debug.alpha.toFixed(1) + '°';
+  betaEl.textContent = debug.beta.toFixed(1) + '°';
+  gammaEl.textContent = debug.gamma.toFixed(1) + '°';
   accelXEl.textContent = debug.accel.x.toFixed(2);
   accelYEl.textContent = debug.accel.y.toFixed(2);
   accelZEl.textContent = debug.accel.z.toFixed(2);
   msgCountEl.textContent = String(msgCount);
 
-  // FPS
   const now = performance.now();
   frameTimes.push(now - lastFrameTime);
   if (frameTimes.length > 60) frameTimes.shift();
@@ -268,7 +256,5 @@ function animate(): void {
 connect();
 animate();
 
-debugLog(`Room code: ${roomCode}`);
-debugLog('Waiting for WebSocket connection...');
 debugLog(`Room code: ${roomCode}`);
 debugLog('Waiting for WebSocket connection...');
