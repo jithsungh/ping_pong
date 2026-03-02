@@ -17,12 +17,12 @@ const TABLE = {
 
 const BALL_RADIUS = 0.02;
 const GRAVITY = 9.81;
-const AIR_RESISTANCE = 0.02;           // Increased for more realistic air drag
-const BOUNCE_COEFFICIENT = 0.8;       // Slightly lower for more realistic energy loss
+const AIR_RESISTANCE = 0.006;          // Realistic air drag for 40mm ping pong ball
+const BOUNCE_COEFFICIENT = 0.85;      // Slightly elastic table bounce
 const SPIN_MAGNUS = 0.25;
-const MIN_BOUNCE_VELOCITY = 0.3;      // Minimum velocity to bounce (prevents infinite small bounces)
-const FRICTION_COEFFICIENT = 0.4;     // Table friction on bounce
-const VELOCITY_DECAY_THRESHOLD = 0.1; // Below this, ball stops
+const MIN_BOUNCE_VELOCITY = 0.25;     // Minimum velocity to bounce (prevents infinite small bounces)
+const FRICTION_COEFFICIENT = 0.25;    // Table friction on bounce
+const VELOCITY_DECAY_THRESHOLD = 0.15; // Below this, ball stops
 const MAX_RALLY_TIME_MS = 30000;      // Maximum rally duration before forcing point end
 
 interface Vector3 {
@@ -157,12 +157,12 @@ export class Physics3D {
     const direction = server === 'player' ? -1 : 1; // Player serves toward opponent (-Z)
     
     // Realistic serve: toss up, then forward with proper arc
-    const serveSpeed = 3.0 + Math.random() * 0.5; // Slight variation
-    const sideAngle = (Math.random() - 0.5) * 0.4; // Small random side angle
+    const serveSpeed = 4.5 + Math.random() * 0.8; // Fast enough to cross table
+    const sideAngle = (Math.random() - 0.5) * 0.3; // Small random side angle
     
     this.ball.velocity = {
-      x: sideAngle * serveSpeed * 0.3,
-      y: 1.8 + Math.random() * 0.3, // Toss up with slight variation
+      x: sideAngle * serveSpeed * 0.2,
+      y: 2.2 + Math.random() * 0.3, // Toss up with good arc over net
       z: direction * serveSpeed  // Forward motion
     };
     
@@ -186,14 +186,14 @@ export class Physics3D {
     this.lastHitter = 'player';
     
     // Intent-based mapping - tuned for realistic ping pong
-    const POWER_SCALE = 4.5;       // Reduced for more controllable speed
-    const ANGLE_SCALE = 0.3;       // Increased for better directional control
-    const LIFT_BASE = 1.8;         // Base upward velocity for proper arc over net
-    const LIFT_SCALE = 0.8;        // How much pitch affects lift  
+    const POWER_SCALE = 7.0;       // Strong enough to cross the table
+    const ANGLE_SCALE = 0.35;      // Directional control
+    const LIFT_BASE = 2.5;         // Base upward velocity for proper arc over net
+    const LIFT_SCALE = 1.0;        // How much pitch affects lift  
     const SPIN_SCALE = 1.5;
     
     // Clamp and scale power
-    const shotPower = Math.min(1.0, Math.max(0.3, power)) * POWER_SCALE;
+    const shotPower = Math.min(1.0, Math.max(0.35, power)) * POWER_SCALE;
     
     // Direction: negative Z = toward opponent
     const yawRad = (yaw * Math.PI) / 180;
@@ -240,8 +240,8 @@ export class Physics3D {
     this.lastHitter = 'player';
     
     // Power scaling - feel-good curve
-    const POWER_SCALE = 4.0;
-    const MIN_POWER = 0.4;
+    const POWER_SCALE = 7.0;
+    const MIN_POWER = 0.45;
     const shotPower = Math.min(1.0, Math.max(MIN_POWER, power)) * POWER_SCALE;
     
     // Direction from paddle face - this is where the ball actually goes
@@ -265,15 +265,15 @@ export class Physics3D {
     
     // Ensure minimum forward velocity
     if (Math.abs(dirZ) < 0.3) {
-      dirZ = -0.5;
+      dirZ = -0.7;
     }
     
-    // Add arc to ensure ball goes over net
-    // More power = less arc (flatter shot)
-    const arcBoost = 1.5 + Math.abs(dirY) * 0.5 - (power * 0.3);
+    // Add arc to ensure ball goes over net and lands on opponent's side
+    // More power = slightly flatter shot, but always enough arc
+    const arcBoost = 2.5 + Math.abs(dirY) * 0.5 - (power * 0.2);
     
     this.ball.velocity = {
-      x: dirX * shotPower * 0.8,
+      x: dirX * shotPower * 0.6,
       y: dirY * shotPower * 0.3 + arcBoost, // Add upward arc
       z: dirZ * shotPower
     };
@@ -295,14 +295,14 @@ export class Physics3D {
    */
   applyOpponentHit(power: number, angle: number, spin: number): void {
     this.lastHitter = 'opponent';
-    const POWER_SCALE = 4.0;  // Slightly lower than player for balance
+    const POWER_SCALE = 6.0;  // Strong enough to cross table
     const shotPower = Math.min(1.0, Math.max(0.4, power)) * POWER_SCALE;
     const angleRad = (angle * Math.PI) / 180;
     
     // Calculate realistic arc toward player
     const forwardSpeed = shotPower * 0.85;
-    const sideSpeed = Math.sin(angleRad) * shotPower * 0.35;
-    const upSpeed = 1.6 + Math.random() * 0.4 + (power * 0.3); // Good arc over net
+    const sideSpeed = Math.sin(angleRad) * shotPower * 0.3;
+    const upSpeed = 2.2 + Math.random() * 0.4 + (power * 0.3); // Strong arc over net
     
     this.ball.velocity = {
       x: sideSpeed,
