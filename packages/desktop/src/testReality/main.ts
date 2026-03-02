@@ -39,6 +39,11 @@ const roomScene = new RoomScene(canvas);
 
 function getServerUrl(): string {
   if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
+  // Production Railway deployment — server is a separate service
+  if (window.location.hostname.includes('railway.app')) {
+    return 'wss://paddlelinkserver-production.up.railway.app';
+  }
+  // Local development fallback
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = import.meta.env.VITE_WS_HOST || window.location.hostname;
   const port = import.meta.env.VITE_WS_PORT || NETWORK.DEFAULT_PORT;
@@ -59,9 +64,10 @@ function setStatus(connected: boolean, text: string): void {
 }
 
 function connect(): void {
-  // Re-use saved room code or generate new one
-  const saved = sessionStorage.getItem('paddlelink_test_room');
-  roomCode = saved || generateRoomCode();
+  // Re-use the game's room code if available, then test room's own, then generate new
+  const savedGame = sessionStorage.getItem('paddlelink_room');
+  const savedTest = sessionStorage.getItem('paddlelink_test_room');
+  roomCode = savedGame || savedTest || generateRoomCode();
   sessionStorage.setItem('paddlelink_test_room', roomCode);
   roomCodeEl.textContent = roomCode;
 
