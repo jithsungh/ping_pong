@@ -1,5 +1,5 @@
 import { NETWORK } from '@paddlelink/shared';
-import type { SwingMessage, PoseMessage, OrientationMessage, ClientMessage, ServerMessage } from '@paddlelink/shared';
+import type { SwingMessage, PoseMessage, OrientationMessage, CalibrateMessage, ClientMessage, ServerMessage } from '@paddlelink/shared';
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'waiting' | 'ready';
 
@@ -187,6 +187,22 @@ export class WebSocketManager {
       gamma,
       accel,
       timestamp: now
+    };
+    
+    this.ws.send(JSON.stringify(message));
+  }
+  
+  /**
+   * Send calibration event to server/desktop
+   */
+  sendCalibrate(): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    
+    const message: CalibrateMessage = {
+      type: 'calibrate',
+      timestamp: performance.now()
     };
     
     this.ws.send(JSON.stringify(message));

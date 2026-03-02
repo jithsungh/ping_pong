@@ -132,6 +132,74 @@
       color: #8b949e;
     }
     .callout strong { color: #e6edf3; }
+
+    /* Calibration overlay */
+    .calibration-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 280px; bottom: 0;
+      background: rgba(13, 17, 23, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .calibration-overlay.hidden { display: none; }
+    .calibration-card {
+      text-align: center;
+      max-width: 420px;
+      padding: 40px;
+    }
+    .calibration-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+    }
+    .calibration-card h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #e6edf3;
+      margin-bottom: 12px;
+    }
+    .calibration-card p {
+      font-size: 14px;
+      color: #8b949e;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+    .calibration-steps {
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: #c9d1d9;
+      line-height: 1.5;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #21262d;
+      border: 1px solid #30363d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #58a6ff;
+    }
   </style>
 </head>
 <body>
@@ -148,6 +216,21 @@
     <!-- Main -->
     <div class="content">
       <canvas id="room-canvas"></canvas>
+
+      <!-- Calibration overlay (on top of canvas) -->
+      <div id="calibration-overlay" class="calibration-overlay">
+        <div class="calibration-card">
+          <div class="calibration-icon" id="calibration-icon">📡</div>
+          <h2>Calibration Required</h2>
+          <p id="calibration-status">Waiting for phone to connect...</p>
+          <div class="calibration-steps">
+            <div class="step"><span class="step-num">1</span> Connect your iPhone using the room code</div>
+            <div class="step"><span class="step-num">2</span> Place phone flat on a table, screen facing up</div>
+            <div class="step"><span class="step-num">3</span> Tap <strong>"Calibrate (Hold Flat)"</strong> on your phone</div>
+            <div class="step"><span class="step-num">4</span> Pick up and move &mdash; the 3D model mirrors you!</div>
+          </div>
+        </div>
+      </div>
 
       <!-- Side panel -->
       <div class="side-panel">
@@ -223,8 +306,10 @@
             <strong>How to use:</strong><br>
             1. Open PaddleLink on your iPhone<br>
             2. Enter the room code above<br>
-            3. Move your phone &mdash; the 3D model mirrors it<br><br>
-            <strong>Tip:</strong> Drag to orbit camera, scroll to zoom
+            3. Place phone flat, screen up, tap <strong>Calibrate</strong><br>
+            4. Pick up and move &mdash; 3D model mirrors it!<br><br>
+            <strong>Tip:</strong> Drag to orbit camera, scroll to zoom.<br>
+            Re-calibrate anytime by tapping Calibrate again on phone.
           </div>
         </div>
       </div>

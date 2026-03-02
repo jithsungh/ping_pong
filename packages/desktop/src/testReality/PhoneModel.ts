@@ -228,34 +228,52 @@ export class PhoneModel {
   }
 
   /**
-   * Set phone orientation from quaternion
+   * Set phone orientation from quaternion (already in Three.js space)
    */
   setQuaternion(q: THREE.Quaternion): void {
     this.group.quaternion.copy(q);
   }
 
   /**
-   * Set phone orientation from Euler angles (device orientation values)
-   * alpha = compass heading (0-360)
-   * beta  = front/back tilt (-180 to 180)
-   * gamma = left/right tilt (-90 to 90)
+   * Convert W3C DeviceOrientation (alpha/beta/gamma) → Three.js quaternion
+   * 
+   * The standard conversion from device coords to Three.js world:
+   * 1. Build quaternion from ZXY euler (device convention)
+   * 2. Rotate -90° around X to convert from "screen faces Z" to "screen faces Y" 
+   *    (device looks at ceiling when flat → Three.js Y-up)
+   * 
+   * Returns a quaternion suitable for use in Three.js world space.
+   */
+  static deviceOrientationToQuaternion(alpha: number, beta: number, gamma: number): THREE.Quaternion {
+    const degToRad = THREE.MathUtils.degToRad;
+
+    // Step 1: Build quaternion from device ZXY euler angles
+    const euler = new THREE.Euler(
+      degToRad(beta),     // X rotation (front/back tilt)
+      degToRad(alpha),    // Y rotation (compass heading)
+      -degToRad(gamma),   // Z rotation (left/right tilt, negated for Three.js)
+      'YXZ'
+    );
+    const q = new THREE.Quaternion().setFromEuler(euler);
+
+    // Step 2: Device orientation has "screen facing ceiling" as default.
+    // Three.js has Z-forward. Rotate -90° around X to make flat phone = screen facing +Y (up).
+    const screenAdjust = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(1, 0, 0),
+      -Math.PI / 2
+    );
+    q.multiply(screenAdjust);
+
+    return q;
+  }
+
+  /**
+   * Set phone orientation from device euler angles (alpha/beta/gamma)
+   * Uses proper W3C → Three.js quaternion conversion
    */
   setOrientation(alpha: number, beta: number, gamma: number): void {
-    // Convert device orientation → Three.js rotation
-    // Device orientation uses ZXY intrinsic order
-    const alphaRad = THREE.MathUtils.degToRad(alpha);
-    const betaRad = THREE.MathUtils.degToRad(beta);
-    const gammaRad = THREE.MathUtils.degToRad(gamma);
-
-    // Build rotation: device → world
-    // Standard W3C Device Orientation → Three.js conversion
-    const euler = new THREE.Euler(betaRad, alphaRad, -gammaRad, 'YXZ');
-    this.group.setRotationFromEuler(euler);
-
-    // Compensate for screen-facing-up default pose
-    // When phone is flat on table, screen up: beta≈0, gamma≈0
-    // We want the 3D phone screen to face camera when phone is flat
-    // No extra rotation needed — the euler above handles it naturally
+    const q = PhoneModel.deviceOrientationToQuaternion(alpha, beta, gamma);
+    this.group.quaternion.copy(q);
   }
 
   /**

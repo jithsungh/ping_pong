@@ -187,6 +187,8 @@ function handleDisconnect(): void {
 
 function handleCalibrate(): void {
   sensorManager.calibrate();
+  // Send calibrate event to desktop so it can establish reference orientation
+  wsManager.sendCalibrate();
   calibrateBtn.textContent = 'Calibrated!';
   setTimeout(() => {
     calibrateBtn.textContent = 'Calibrate (Hold Flat)';

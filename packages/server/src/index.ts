@@ -2,7 +2,7 @@ import { WebSocketServer as WSServer, WebSocket } from 'ws';
 import type { IncomingMessage } from 'http';
 import { NETWORK } from '@paddlelink/shared';
 import { RoomManager } from './rooms.js';
-import type { ClientMessage, JoinMessage, SwingMessage, PoseMessage, OrientationMessage } from '@paddlelink/shared';
+import type { ClientMessage, JoinMessage, SwingMessage, PoseMessage, OrientationMessage, CalibrateMessage } from '@paddlelink/shared';
 
 const PORT = Number(process.env.PORT) || NETWORK.DEFAULT_PORT;
 
@@ -57,6 +57,10 @@ function handleMessage(ws: WebSocket, message: ClientMessage): void {
 
     case 'orientation':
       handleOrientation(ws, message);
+      break;
+
+    case 'calibrate':
+      handleCalibrate(ws, message);
       break;
       
     case 'rematch':
@@ -136,6 +140,20 @@ function handleOrientation(ws: WebSocket, message: OrientationMessage): void {
   if (!room) return;
 
   // Forward raw orientation to display (low latency critical)
+  if (room.display && room.display.ws.readyState === 1) {
+    room.display.ws.send(JSON.stringify(message));
+  }
+
+  room.lastActivity = Date.now();
+}
+
+function handleCalibrate(ws: WebSocket, message: CalibrateMessage): void {
+  const room = roomManager.findRoomBySocket(ws);
+  if (!room) return;
+
+  console.log(`Calibrate received in room: ${room.code}`);
+
+  // Forward calibrate to display
   if (room.display && room.display.ws.readyState === 1) {
     room.display.ws.send(JSON.stringify(message));
   }

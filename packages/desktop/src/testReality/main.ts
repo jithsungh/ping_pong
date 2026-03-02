@@ -18,6 +18,9 @@ const fpsEl = document.getElementById('val-fps')!;
 const msgCountEl = document.getElementById('val-msgs')!;
 const statusDot = document.getElementById('status-dot')!;
 const statusText = document.getElementById('status-text')!;
+const calibrationOverlay = document.getElementById('calibration-overlay')!;
+const calibrationStatus = document.getElementById('calibration-status')!;
+const calibrationIcon = document.getElementById('calibration-icon')!;
 
 // ========================================
 // State
@@ -96,14 +99,23 @@ function connect(): void {
 
       if (msg.type === 'connected') {
         setStatus(true, 'Phone connected!');
-        waitingEl.textContent = 'Receiving sensor data \u2014 move your phone!';
+        calibrationStatus.textContent = 'Phone connected! Place it flat on a table, screen facing up, then tap "Calibrate" on your iPhone.';
+        calibrationIcon.textContent = '📱';
+        waitingEl.textContent = 'Waiting for calibration...';
         waitingEl.classList.add('connected');
       } else if (msg.type === 'waiting') {
         setStatus(false, 'Waiting for phone...');
+        calibrationStatus.textContent = 'Waiting for phone to connect...';
+        calibrationIcon.textContent = '📡';
       } else if (msg.type === 'opponentDisconnected') {
         setStatus(false, 'Phone disconnected');
         waitingEl.textContent = 'Phone disconnected \u2014 reconnect to continue';
         waitingEl.classList.remove('connected');
+        calibrationOverlay.classList.remove('hidden');
+        calibrationStatus.textContent = 'Phone disconnected. Reconnect to continue.';
+        calibrationIcon.textContent = '❌';
+      } else if (msg.type === 'calibrate') {
+        handleCalibrate();
       } else if (msg.type === 'orientation') {
         handleOrientation(msg as OrientationMessage);
       } else if (msg.type === 'pose') {
@@ -138,6 +150,14 @@ function handleOrientation(msg: OrientationMessage): void {
 function handlePose(msg: PoseMessage): void {
   msgCount++;
   roomScene.updatePose(msg.q);
+}
+
+function handleCalibrate(): void {
+  console.log('[TestReality] Calibrate received!');
+  roomScene.calibrate();
+  // Hide calibration overlay
+  calibrationOverlay.classList.add('hidden');
+  waitingEl.textContent = 'Calibrated! Move your phone \u2014 the 3D model mirrors it.';
 }
 
 // ========================================

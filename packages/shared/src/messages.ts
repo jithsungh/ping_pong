@@ -69,13 +69,19 @@ export interface OrientationMessage {
   timestamp: number;
 }
 
+/** Client -> Server: Calibration event (phone placed flat, screen up) */
+export interface CalibrateMessage {
+  type: 'calibrate';
+  timestamp: number;
+}
+
 /** Client -> Server: Request new game */
 export interface RematchMessage {
   type: 'rematch';
 }
 
 // Union type for all messages
-export type ClientMessage = JoinMessage | PoseMessage | SwingMessage | OrientationMessage | RematchMessage;
+export type ClientMessage = JoinMessage | PoseMessage | SwingMessage | OrientationMessage | CalibrateMessage | RematchMessage;
 export type ServerMessage = GameStateMessage | ConnectionMessage | PointMessage | GameOverMessage;
 export type Message = ClientMessage | ServerMessage;
 

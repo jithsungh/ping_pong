@@ -13,6 +13,8 @@ export interface OrientationData {
   accel: { x: number; y: number; z: number };
 }
 
+type CalibrationState = 'waiting' | 'calibrated';
+
 export class RoomScene {
   private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
@@ -34,6 +36,24 @@ export class RoomScene {
   private smoothedGamma = 0;
   private smoothedAccel = { x: 0, y: 0, z: 0 };
   private dataReceived = false;
+
+  // === CALIBRATION ===
+  private calibrationState: CalibrationState = 'waiting';
+  // Inverse of the reference quaternion captured at calibration time
+  private calibrationRefInverse = new THREE.Quaternion();
+  // The "flat on table, screen up" pose in Three.js world = phone screen faces +Y
+  // PhoneModel's screen is on the +Z face of the geometry, so to have screen face +Y
+  // we rotate -90° around X.
+  private flatPose = new THREE.Quaternion().setFromAxisAngle(
+    new THREE.Vector3(1, 0, 0),
+    -Math.PI / 2
+  );
+  // Smoothed quaternion for SLERP
+  private currentQuat = new THREE.Quaternion();
+  private targetQuat = new THREE.Quaternion();
+
+  // Callback for calibration state changes
+  private onCalibrationChangeCallback: ((state: CalibrationState) => void) | null = null;
 
   // Axis helpers
   private axisGroup!: THREE.Group;
@@ -266,13 +286,51 @@ export class RoomScene {
   }
 
   /**
+   * Register callback for calibration state changes
+   */
+  onCalibrationChange(callback: (state: CalibrationState) => void): void {
+    this.onCalibrationChangeCallback = callback;
+  }
+
+  /**
+   * Get current calibration state
+   */
+  getCalibrationState(): CalibrationState {
+    return this.calibrationState;
+  }
+
+  /**
+   * Called when the mobile sends a calibrate event.
+   * Captures the current device orientation as the "flat on table" reference.
+   * All future orientations are relative to this reference.
+   */
+  calibrate(): void {
+    // The last received raw quaternion becomes our reference
+    // We store its inverse so we can compute: q_relative = q_refInverse * q_current
+    const currentRaw = PhoneModel.deviceOrientationToQuaternion(
+      this.smoothedAlpha,
+      this.smoothedBeta,
+      this.smoothedGamma
+    );
+    this.calibrationRefInverse.copy(currentRaw).invert();
+    
+    // Start pose from flat
+    this.currentQuat.copy(this.flatPose);
+    this.targetQuat.copy(this.flatPose);
+
+    this.calibrationState = 'calibrated';
+    this.onCalibrationChangeCallback?.('calibrated');
+    console.log('[RoomScene] Calibrated! Reference orientation captured.');
+  }
+
+  /**
    * Update phone orientation from raw device orientation data
    */
   updateOrientation(data: OrientationData): void {
     this.dataReceived = true;
 
     // Smooth incoming values (low-pass)
-    const s = 0.35;
+    const s = 0.4;
     this.smoothedAlpha = s * data.alpha + (1 - s) * this.smoothedAlpha;
     this.smoothedBeta = s * data.beta + (1 - s) * this.smoothedBeta;
     this.smoothedGamma = s * data.gamma + (1 - s) * this.smoothedGamma;
@@ -280,11 +338,27 @@ export class RoomScene {
     this.smoothedAccel.y = s * data.accel.y + (1 - s) * this.smoothedAccel.y;
     this.smoothedAccel.z = s * data.accel.z + (1 - s) * this.smoothedAccel.z;
 
-    // Apply to phone model
-    this.phone.setOrientation(this.smoothedAlpha, this.smoothedBeta, this.smoothedGamma);
+    if (this.calibrationState !== 'calibrated') {
+      // Not calibrated yet — show idle animation, don't apply
+      return;
+    }
 
-    // Update axis helper to match phone orientation
-    this.axisGroup.rotation.copy(this.phone.getMesh().rotation);
+    // Convert raw device orientation → Three.js quaternion
+    const rawQuat = PhoneModel.deviceOrientationToQuaternion(
+      this.smoothedAlpha,
+      this.smoothedBeta,
+      this.smoothedGamma
+    );
+
+    // Compute relative rotation from calibration reference
+    // q_relative = q_refInverse * q_current
+    const relativeQuat = new THREE.Quaternion()
+      .copy(this.calibrationRefInverse)
+      .multiply(rawQuat);
+
+    // Apply relative rotation to the flat pose
+    // Final = flatPose * relative
+    this.targetQuat.copy(this.flatPose).multiply(relativeQuat);
   }
 
   /**
@@ -292,29 +366,39 @@ export class RoomScene {
    */
   updatePose(q: [number, number, number, number]): void {
     this.dataReceived = true;
-    const quat = new THREE.Quaternion(q[0], q[1], q[2], q[3]);
-    this.phone.setQuaternion(quat);
-    
-    // Extract euler for debug display
-    const euler = new THREE.Euler().setFromQuaternion(quat, 'YXZ');
+
+    // Convert to Three.js quat
+    const rawQuat = new THREE.Quaternion(q[0], q[1], q[2], q[3]);
+
+    // Extract approximate euler for debug HUD
+    const euler = new THREE.Euler().setFromQuaternion(rawQuat, 'YXZ');
     this.smoothedAlpha = THREE.MathUtils.radToDeg(euler.y);
     this.smoothedBeta = THREE.MathUtils.radToDeg(euler.x);
     this.smoothedGamma = -THREE.MathUtils.radToDeg(euler.z);
 
-    // Sync axis helper
-    this.axisGroup.quaternion.copy(quat);
+    if (this.calibrationState !== 'calibrated') {
+      return;
+    }
+
+    // Same relative rotation approach as updateOrientation
+    const relativeQuat = new THREE.Quaternion()
+      .copy(this.calibrationRefInverse)
+      .multiply(rawQuat);
+
+    this.targetQuat.copy(this.flatPose).multiply(relativeQuat);
   }
 
   /**
    * Get current smoothed values for debug HUD
    */
-  getDebugData(): { alpha: number; beta: number; gamma: number; accel: { x: number; y: number; z: number }; connected: boolean } {
+  getDebugData(): { alpha: number; beta: number; gamma: number; accel: { x: number; y: number; z: number }; connected: boolean; calibrated: boolean } {
     return {
       alpha: this.smoothedAlpha,
       beta: this.smoothedBeta,
       gamma: this.smoothedGamma,
       accel: { ...this.smoothedAccel },
       connected: this.dataReceived,
+      calibrated: this.calibrationState === 'calibrated',
     };
   }
 
@@ -330,13 +414,18 @@ export class RoomScene {
   }
 
   render(): void {
-    // Gentle idle animation if no data yet
-    if (!this.dataReceived) {
+    if (this.calibrationState === 'calibrated') {
+      // SLERP toward target for buttery-smooth motion
+      this.currentQuat.slerp(this.targetQuat, 0.25);
+      this.phone.setQuaternion(this.currentQuat);
+      this.axisGroup.quaternion.copy(this.currentQuat);
+    } else {
+      // Gentle idle animation — waiting for calibration
       const t = performance.now() * 0.001;
       this.phone.getMesh().rotation.set(
-        Math.sin(t * 0.5) * 0.15,
-        t * 0.3,
-        Math.cos(t * 0.7) * 0.1
+        -Math.PI / 2 + Math.sin(t * 0.5) * 0.08,  // Mostly flat, gentle wobble
+        t * 0.15,                                     // Slow spin
+        Math.cos(t * 0.7) * 0.05
       );
       this.axisGroup.rotation.copy(this.phone.getMesh().rotation);
     }
