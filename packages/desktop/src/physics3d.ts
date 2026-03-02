@@ -45,6 +45,7 @@ export class Physics3D {
   private playerMissed = false;
   private opponentMissed = false;
   private netHit = false;
+  private waitingForServe = true;       // Freeze physics until serve starts
   
   // Collision callbacks for sound effects
   private onTableBounce: (() => void) | null = null;
@@ -100,7 +101,8 @@ export class Physics3D {
     this.playerMissed = false;
     this.opponentMissed = false;
     this.netHit = false;
-    this.rallyStartTime = performance.now(); // Track rally start
+    this.waitingForServe = true;  // Ball frozen until serve starts
+    this.rallyStartTime = 0; // Reset rally timer
     
     // Position ball above server's side
     const zPos = server === 'player' 
@@ -122,6 +124,9 @@ export class Physics3D {
    * More realistic serve trajectory
    */
   startServe(server: 'player' | 'opponent'): void {
+    this.waitingForServe = false;  // Physics now active
+    this.rallyStartTime = performance.now(); // Start rally timer
+    
     const direction = server === 'player' ? -1 : 1; // Player serves toward opponent (-Z)
     
     // Realistic serve: toss up, then forward with proper arc
@@ -146,6 +151,12 @@ export class Physics3D {
    * Apply player hit to ball (legacy Euler-based)
    */
   applyPlayerHit(power: number, yaw: number, pitch: number, spin: number): void {
+    // Start physics if this is a serve
+    if (this.waitingForServe) {
+      this.waitingForServe = false;
+      this.rallyStartTime = performance.now();
+    }
+    
     // Intent-based mapping - tuned for realistic ping pong
     const POWER_SCALE = 4.5;       // Reduced for more controllable speed
     const ANGLE_SCALE = 0.3;       // Increased for better directional control
@@ -193,6 +204,12 @@ export class Physics3D {
     spinAxis: { x: number; y: number; z: number },
     angularVel: number
   ): void {
+    // Start physics if this is a serve
+    if (this.waitingForServe) {
+      this.waitingForServe = false;
+      this.rallyStartTime = performance.now();
+    }
+    
     // Power scaling - feel-good curve
     const POWER_SCALE = 4.0;
     const MIN_POWER = 0.4;
@@ -275,6 +292,7 @@ export class Physics3D {
    */
   update(deltaTime: number): void {
     if (!this.ball.visible) return;
+    if (this.waitingForServe) return;  // Ball frozen until serve
     
     // Clamp delta time for stability (prevents physics explosion on lag)
     const dt = Math.min(deltaTime, 0.05);
