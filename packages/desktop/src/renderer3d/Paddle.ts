@@ -170,18 +170,14 @@ export class Paddle {
     // Store angular velocity for swing detection
     this.angularVelocity.set(angularVel[0], angularVel[1], angularVel[2]);
     
-    // Extract Euler angles from quaternion — use ZXY to match mobile's convention
-    // Mobile builds quaternion as Rz(alpha) * Rx(beta) * Ry(gamma) [ZXY intrinsic]
-    // So ZXY extraction recovers the original device angles:
-    //   euler.z = alpha (compass heading / yaw)
-    //   euler.x = beta  (forward-back tilt / pitch)
-    //   euler.y = gamma (left-right tilt / roll)
+    // Extract Euler angles from quaternion for intuitive mapping
     const euler = new THREE.Euler();
-    euler.setFromQuaternion(this.targetQuaternion, 'ZXY');
+    euler.setFromQuaternion(this.targetQuaternion, 'YXZ');
     
-    this.phoneYaw = euler.z;    // alpha: horizontal rotation (compass)
+    // Store phone angles (in degrees for debugging, radians for calculation)
+    this.phoneRoll = euler.z;   // gamma: left/right tilt 
     this.phonePitch = euler.x;  // beta: forward/back tilt
-    this.phoneRoll = euler.y;   // gamma: left/right tilt
+    this.phoneYaw = euler.y;    // alpha: horizontal rotation
     
     // === POSITION MAPPING (2D table movement + forward/back) ===
     

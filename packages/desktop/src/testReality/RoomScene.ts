@@ -213,12 +213,7 @@ export class RoomScene {
     this.scene.add(pedestal);
   }
 
-  /** XYZ axis arrows at phone origin for orientation reference
-   *  Colored to match WORLD-intuitive axes after flat pose:
-   *  Red  (X) = local X = right edge of phone
-   *  Green(Y) = local Z = screen normal → points UP when flat
-   *  Blue (Z) = local Y = phone long axis → points FORWARD when flat
-   */
+  /** XYZ axis arrows at phone origin for orientation reference */
   private createAxisHelper(): void {
     this.axisGroup = new THREE.Group();
     
@@ -226,18 +221,18 @@ export class RoomScene {
     const arrowHeadLength = 0.04;
     const arrowHeadWidth = 0.015;
 
-    // X axis (red) — phone's right edge → world right
+    // X axis (red)
     const xDir = new THREE.Vector3(1, 0, 0);
     const xArrow = new THREE.ArrowHelper(xDir, new THREE.Vector3(), axisLength, 0xff4444, arrowHeadLength, arrowHeadWidth);
     this.axisGroup.add(xArrow);
 
-    // Y axis (green) — screen normal (local Z) → world UP when flat
-    const yDir = new THREE.Vector3(0, 0, 1);
+    // Y axis (green)
+    const yDir = new THREE.Vector3(0, 1, 0);
     const yArrow = new THREE.ArrowHelper(yDir, new THREE.Vector3(), axisLength, 0x44ff44, arrowHeadLength, arrowHeadWidth);
     this.axisGroup.add(yArrow);
 
-    // Z axis (blue) — phone long axis (local Y) → world FORWARD when flat
-    const zDir = new THREE.Vector3(0, 1, 0);
+    // Z axis (blue)
+    const zDir = new THREE.Vector3(0, 0, 1);
     const zArrow = new THREE.ArrowHelper(zDir, new THREE.Vector3(), axisLength, 0x4444ff, arrowHeadLength, arrowHeadWidth);
     this.axisGroup.add(zArrow);
 
@@ -375,11 +370,11 @@ export class RoomScene {
     // Convert to Three.js quat
     const rawQuat = new THREE.Quaternion(q[0], q[1], q[2], q[3]);
 
-    // Extract approximate euler for debug HUD (ZXY matches mobile's convention)
-    const euler = new THREE.Euler().setFromQuaternion(rawQuat, 'ZXY');
-    this.smoothedAlpha = THREE.MathUtils.radToDeg(euler.z);
+    // Extract approximate euler for debug HUD
+    const euler = new THREE.Euler().setFromQuaternion(rawQuat, 'YXZ');
+    this.smoothedAlpha = THREE.MathUtils.radToDeg(euler.y);
     this.smoothedBeta = THREE.MathUtils.radToDeg(euler.x);
-    this.smoothedGamma = THREE.MathUtils.radToDeg(euler.y);
+    this.smoothedGamma = -THREE.MathUtils.radToDeg(euler.z);
 
     if (this.calibrationState !== 'calibrated') {
       return;
