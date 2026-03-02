@@ -143,7 +143,7 @@ export class Physics3D {
   }
   
   /**
-   * Apply player hit to ball
+   * Apply player hit to ball (legacy Euler-based)
    */
   applyPlayerHit(power: number, yaw: number, pitch: number, spin: number): void {
     // Intent-based mapping - tuned for realistic ping pong
@@ -175,6 +175,72 @@ export class Physics3D {
       x: spin * SPIN_SCALE,
       y: yaw * 0.05,
       z: -spin * 0.5 // Forward spin affects trajectory
+    };
+  }
+  
+  /**
+   * Apply player hit using paddle direction vector (Magic Remote style)
+   * This is the primary method for pose-based control
+   * 
+   * @param direction - Paddle forward direction (normalized, from quaternion)
+   * @param power - Hit power (0-1)
+   * @param spinAxis - Paddle right axis for spin calculation
+   * @param angularVel - Angular velocity for spin
+   */
+  applyPlayerHitFromDirection(
+    direction: { x: number; y: number; z: number },
+    power: number,
+    spinAxis: { x: number; y: number; z: number },
+    angularVel: number
+  ): void {
+    // Power scaling - feel-good curve
+    const POWER_SCALE = 4.0;
+    const MIN_POWER = 0.4;
+    const shotPower = Math.min(1.0, Math.max(MIN_POWER, power)) * POWER_SCALE;
+    
+    // Direction from paddle face - this is where the ball actually goes
+    // Ensure it goes toward opponent (negative Z component)
+    let dirX = direction.x;
+    let dirY = direction.y;
+    let dirZ = direction.z;
+    
+    // Normalize and ensure it goes forward (toward opponent = -Z)
+    const len = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+    if (len > 0.001) {
+      dirX /= len;
+      dirY /= len;
+      dirZ /= len;
+    }
+    
+    // If paddle is pointed wrong way, flip it
+    if (dirZ > 0) {
+      dirZ = -dirZ;
+    }
+    
+    // Ensure minimum forward velocity
+    if (Math.abs(dirZ) < 0.3) {
+      dirZ = -0.5;
+    }
+    
+    // Add arc to ensure ball goes over net
+    // More power = less arc (flatter shot)
+    const arcBoost = 1.5 + Math.abs(dirY) * 0.5 - (power * 0.3);
+    
+    this.ball.velocity = {
+      x: dirX * shotPower * 0.8,
+      y: dirY * shotPower * 0.3 + arcBoost, // Add upward arc
+      z: dirZ * shotPower
+    };
+    
+    // Spin from angular velocity and paddle orientation
+    // Topspin: paddle rotating down (positive angular velocity around X)
+    // Sidespin: paddle rotating left/right
+    const spinScale = Math.min(1.0, angularVel / 8.0); // Normalized spin
+    
+    this.ball.spin = {
+      x: spinAxis.x * spinScale * 2.0,  // Topspin/backspin
+      y: spinAxis.y * spinScale * 1.0,  // Sidespin
+      z: spinAxis.z * spinScale * 0.5   // Cork spin
     };
   }
   

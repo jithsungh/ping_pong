@@ -1,5 +1,5 @@
 import { RULES } from '@paddlelink/shared';
-import type { GamePhase, Score, SwingMessage } from '@paddlelink/shared';
+import type { GamePhase, Score, SwingMessage, PoseMessage } from '@paddlelink/shared';
 import { Scene3D, RenderState3D } from './renderer3d';
 import { Physics3D } from './physics3d';
 import { AIOpponent } from './ai';
@@ -7,6 +7,9 @@ import { audioManager } from './audio';
 
 // Hit timing window in milliseconds
 const HIT_WINDOW_MS = 150;
+// Angular velocity threshold for swing detection (rad/s)
+const ANGULAR_SWING_THRESHOLD = 4.0;
+const ANGULAR_SWING_MAX = 12.0;
 
 export class Game3D {
   private scene: Scene3D;
@@ -28,6 +31,9 @@ export class Game3D {
   // Paddle orientation (from last swing)
   private paddleYaw = 0;
   private paddlePitch = 0;
+  
+  // Pose-based control (Magic Remote style)
+  private lastPoseSwingTime = 0;
   
   // Prevent double-scoring
   private isScoring = false;
@@ -102,7 +108,90 @@ export class Game3D {
   }
   
   /**
-   * Handle player swing with 3D orientation
+   * Handle continuous pose streaming (Magic Remote style)
+   * Called at ~60Hz from mobile device
+   */
+  handlePose(pose: PoseMessage): void {
+    // Forward pose to scene for paddle visualization
+    this.scene.setPaddlePose(pose.q, pose.angularVel);
+    
+    // Detect swing from angular velocity spike
+    const angularMag = Math.sqrt(
+      pose.angularVel[0] ** 2 +
+      pose.angularVel[1] ** 2 +
+      pose.angularVel[2] ** 2
+    );
+    
+    const now = performance.now();
+    
+    // Check for swing (angular velocity spike)
+    if (angularMag >= ANGULAR_SWING_THRESHOLD) {
+      // Check cooldown
+      if (now - this.lastPoseSwingTime < HIT_WINDOW_MS * 2) {
+        return;
+      }
+      
+      // Check game phase
+      if (this.phase !== 'playing' && this.phase !== 'serving') {
+        return;
+      }
+      
+      // Check hit cooldown
+      if (now - this.lastHitTime < 200) {
+        return;
+      }
+      
+      // Calculate power from angular velocity
+      const power = Math.min(1.0, (angularMag - ANGULAR_SWING_THRESHOLD) / 
+                                  (ANGULAR_SWING_MAX - ANGULAR_SWING_THRESHOLD) + 0.3);
+      
+      // If serving, start the serve
+      if (this.phase === 'serving' && this.server === 'player') {
+        this.executeHitFromPose(power);
+        this.setPhase('playing');
+        audioManager.playServe();
+        this.lastPoseSwingTime = now;
+        return;
+      }
+      
+      // If playing and ball is in hit zone
+      if (this.phase === 'playing' && this.canPlayerHit) {
+        const quality = this.computeTimingQuality();
+        this.executeHitFromPose(power * quality);
+        this.lastPoseSwingTime = now;
+      }
+    }
+  }
+  
+  /**
+   * Execute hit using paddle direction from pose
+   */
+  private executeHitFromPose(power: number): void {
+    const now = performance.now();
+    
+    // Get paddle direction from scene (quaternion-derived)
+    const forward = this.scene.getPaddleForward();
+    const right = this.scene.getPaddleRight();
+    const angularVel = this.scene.getPaddleAngularVelocity();
+    
+    // Apply hit using direction
+    this.physics.applyPlayerHitFromDirection(
+      { x: forward.x, y: forward.y, z: forward.z },
+      power,
+      { x: right.x, y: right.y, z: right.z },
+      angularVel
+    );
+    
+    this.lastHitTime = now;
+    this.canPlayerHit = false;
+    
+    // Visual and audio feedback
+    this.scene.triggerHitEffect(0, 0, 0, power);
+    audioManager.playPaddleHit(power);
+  }
+  
+  /**
+   * Handle player swing with 3D orientation (legacy event-based)
    */
   handlePlayerSwing(swing: SwingMessage): void {
     const now = performance.now();

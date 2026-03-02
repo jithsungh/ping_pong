@@ -9,7 +9,15 @@ export interface JoinMessage {
   playerType: 'paddle' | 'display';
 }
 
-/** Client -> Server: Player swing detected */
+/** Client -> Server: Continuous paddle pose (60Hz stream) */
+export interface PoseMessage {
+  type: 'pose';
+  q: [number, number, number, number];  // Quaternion [x, y, z, w]
+  angularVel: [number, number, number]; // Angular velocity [x, y, z] rad/s
+  timestamp: number;                     // Performance.now() on client
+}
+
+/** Client -> Server: Player swing detected (legacy, still supported) */
 export interface SwingMessage {
   type: 'swing';
   speed: number;      // 0-1 normalized swing speed
@@ -57,7 +65,7 @@ export interface RematchMessage {
 }
 
 // Union type for all messages
-export type ClientMessage = JoinMessage | SwingMessage | RematchMessage;
+export type ClientMessage = JoinMessage | PoseMessage | SwingMessage | RematchMessage;
 export type ServerMessage = GameStateMessage | ConnectionMessage | PointMessage | GameOverMessage;
 export type Message = ClientMessage | ServerMessage;
 

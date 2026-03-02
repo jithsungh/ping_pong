@@ -1,5 +1,5 @@
 import { NETWORK, ROOM } from '@paddlelink/shared';
-import type { ClientMessage, SwingMessage } from '@paddlelink/shared';
+import type { ClientMessage, SwingMessage, PoseMessage } from '@paddlelink/shared';
 
 type ConnectionState = 'disconnected' | 'connecting' | 'waiting' | 'connected';
 
@@ -10,6 +10,7 @@ export class WebSocketServer {
   
   private onStateChangeCallback: ((state: ConnectionState) => void) | null = null;
   private onSwingCallback: ((swing: SwingMessage) => void) | null = null;
+  private onPoseCallback: ((pose: PoseMessage) => void) | null = null;
   
   /**
    * Generate a random room code
@@ -53,6 +54,13 @@ export class WebSocketServer {
    */
   onSwing(callback: (swing: SwingMessage) => void): void {
     this.onSwingCallback = callback;
+  }
+  
+  /**
+   * Register pose callback (continuous streaming)
+   */
+  onPose(callback: (pose: PoseMessage) => void): void {
+    this.onPoseCallback = callback;
   }
   
   /**
@@ -135,6 +143,8 @@ export class WebSocketServer {
         this.onStateChangeCallback?.(this.state);
       } else if (message.type === 'swing') {
         this.onSwingCallback?.(message as SwingMessage);
+      } else if (message.type === 'pose') {
+        this.onPoseCallback?.(message as PoseMessage);
       }
     } catch (error) {
       console.error('Failed to parse message:', error);

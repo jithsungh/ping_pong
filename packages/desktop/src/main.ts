@@ -128,6 +128,12 @@ function init(): void {
     game?.handlePlayerSwing(swing);
   });
   
+  // Pose streaming for Magic Remote style control
+  wsServer.onPose((pose) => {
+    // Forward pose to game for paddle visualization and swing detection
+    game?.handlePose(pose);
+  });
+  
   // Connect to server
   wsServer.connect();
   

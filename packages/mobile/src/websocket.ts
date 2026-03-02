@@ -1,5 +1,5 @@
 import { NETWORK } from '@paddlelink/shared';
-import type { SwingMessage, ClientMessage, ServerMessage } from '@paddlelink/shared';
+import type { SwingMessage, PoseMessage, ClientMessage, ServerMessage } from '@paddlelink/shared';
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'waiting' | 'ready';
 
@@ -9,6 +9,10 @@ export class WebSocketManager {
   private serverUrl: string = '';
   private reconnectAttempts = 0;
   private state: ConnectionState = 'disconnected';
+  
+  // Pose streaming throttle
+  private lastPoseSendTime = 0;
+  private POSE_SEND_INTERVAL = 16; // ~60Hz
   
   private onStateChangeCallback: ((state: ConnectionState, message?: string) => void) | null = null;
   private onMessageCallback: ((message: ServerMessage) => void) | null = null;
@@ -80,7 +84,7 @@ export class WebSocketManager {
   }
   
   /**
-   * Send swing data to server
+   * Send swing data to server (legacy event-based)
    */
   sendSwing(speed: number, angle: number, spin: number, yaw?: number, pitch?: number, roll?: number): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -97,6 +101,32 @@ export class WebSocketManager {
       yaw,
       pitch,
       roll
+    };
+    
+    this.ws.send(JSON.stringify(message));
+  }
+  
+  /**
+   * Send continuous pose data (Magic Remote style)
+   * Streams quaternion + angular velocity at ~60Hz
+   */
+  sendPose(quaternion: [number, number, number, number], angularVelocity: [number, number, number]): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return; // Silent fail for streaming - don't spam console
+    }
+    
+    // Throttle to ~60Hz
+    const now = performance.now();
+    if (now - this.lastPoseSendTime < this.POSE_SEND_INTERVAL) {
+      return;
+    }
+    this.lastPoseSendTime = now;
+    
+    const message: PoseMessage = {
+      type: 'pose',
+      q: quaternion,
+      angularVel: angularVelocity,
+      timestamp: now
     };
     
     this.ws.send(JSON.stringify(message));

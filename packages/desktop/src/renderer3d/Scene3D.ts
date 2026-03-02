@@ -232,7 +232,7 @@ export class Scene3D {
     this.ball.setPosition(ballX, ballY, ballZ);
     this.ball.setVisible(state.ball.visible);
     
-    // Update paddle visualization
+    // Update paddle visualization (legacy Euler mode)
     if (state.paddleYaw !== undefined && state.paddlePitch !== undefined) {
       this.paddle.setRotation(state.paddleYaw, state.paddlePitch);
     }
@@ -241,6 +241,41 @@ export class Scene3D {
     
     // Render scene
     this.renderer.render(this.scene, this.camera);
+  }
+  
+  /**
+   * Set paddle pose from quaternion (Magic Remote style)
+   */
+  setPaddlePose(q: [number, number, number, number], angularVel: [number, number, number]): void {
+    this.paddle.setQuaternion(q, angularVel);
+  }
+  
+  /**
+   * Get paddle forward direction (where it's pointing)
+   */
+  getPaddleForward(): THREE.Vector3 {
+    return this.paddle.getForwardDirection();
+  }
+  
+  /**
+   * Get paddle right direction (for spin)
+   */
+  getPaddleRight(): THREE.Vector3 {
+    return this.paddle.getRightDirection();
+  }
+  
+  /**
+   * Get paddle angular velocity magnitude
+   */
+  getPaddleAngularVelocity(): number {
+    return this.paddle.getAngularVelocityMagnitude();
+  }
+  
+  /**
+   * Get paddle angular velocity vector
+   */
+  getPaddleAngularVelocityVec(): THREE.Vector3 {
+    return this.paddle.getAngularVelocity();
   }
   
   /**

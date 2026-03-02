@@ -1,4 +1,4 @@
-import { SensorManager } from './sensors';
+import { SensorManager, PoseData } from './sensors';
 import { WebSocketManager } from './websocket';
 import type { SensorData, SwingDetection } from '@paddlelink/shared';
 
@@ -97,8 +97,17 @@ function handleSwing(swing: SwingDetection): void {
     swingIndicator.classList.remove('swing-detected');
   }, 200);
   
-  // Send to server with 3D orientation
+  // Send legacy swing event (still supported)
   wsManager.sendSwing(swing.speed, swing.angle, swing.spin, swing.yaw, swing.pitch, swing.roll);
+}
+
+/**
+ * Handle continuous pose streaming (Magic Remote style)
+ * Sends quaternion + angular velocity at ~60Hz
+ */
+function handlePose(pose: PoseData): void {
+  // Stream pose to desktop via WebSocket
+  wsManager.sendPose(pose.quaternion, pose.angularVelocity);
 }
 
 // ========================================
@@ -132,6 +141,7 @@ async function handlePermissionRequest(): Promise<void> {
     sensorManager.start();
     sensorManager.onSensorUpdate(handleSensorUpdate);
     sensorManager.onSwing(handleSwing);
+    sensorManager.onPose(handlePose); // Add pose streaming
   } else {
     alert('Motion permission denied. Please enable in device settings.');
   }

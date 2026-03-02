@@ -2,7 +2,7 @@ import { WebSocketServer as WSServer, WebSocket } from 'ws';
 import type { IncomingMessage } from 'http';
 import { NETWORK } from '@paddlelink/shared';
 import { RoomManager } from './rooms.js';
-import type { ClientMessage, JoinMessage, SwingMessage } from '@paddlelink/shared';
+import type { ClientMessage, JoinMessage, SwingMessage, PoseMessage } from '@paddlelink/shared';
 
 const PORT = Number(process.env.PORT) || NETWORK.DEFAULT_PORT;
 
@@ -49,6 +49,10 @@ function handleMessage(ws: WebSocket, message: ClientMessage): void {
       
     case 'swing':
       handleSwing(ws, message);
+      break;
+      
+    case 'pose':
+      handlePose(ws, message);
       break;
       
     case 'rematch':
@@ -103,6 +107,23 @@ function handleSwing(ws: WebSocket, message: SwingMessage): void {
     room.display.ws.send(JSON.stringify(message));
   }
   
+  room.lastActivity = Date.now();
+}
+
+function handlePose(ws: WebSocket, message: PoseMessage): void {
+  // Find the room this paddle is in
+  const room = roomManager.findRoomBySocket(ws);
+  
+  if (!room) {
+    return; // Silent fail for streaming - don't spam console
+  }
+  
+  // Forward pose to display (low latency critical)
+  if (room.display && room.display.ws.readyState === 1) {
+    room.display.ws.send(JSON.stringify(message));
+  }
+  
+  // Update activity (but don't log pose messages - too frequent)
   room.lastActivity = Date.now();
 }
 

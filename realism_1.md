@@ -354,7 +354,7 @@ Yes.
 
 You can absolutely build:
 
-> “Magic Remote style + Swing-based Ping Pong”
+> “Magic Remote style + Swing-based Ping Pong (current events)”
 
 But the architecture must shift from:
 
