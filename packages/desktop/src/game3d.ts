@@ -207,17 +207,23 @@ export class Game3D {
     // Check hit zones
     this.canPlayerHit = this.physics.isInPlayerHitZone();
     
-    // AI opponent
-    if (this.phase === 'playing' && this.physics.isInOpponentHitZone()) {
+    // AI opponent - check every frame when ball is in play
+    if (this.phase === 'playing') {
+      const isInOpponentZone = this.physics.isInOpponentHitZone();
       const ball3d = this.physics.getBall3D();
-      // Convert to the BallState format AI expects
+      
+      // Pass 3D ball state with pre-computed hit zone to AI
       const aiBall = {
-        x: (ball3d.position.x / 1.525) + 0.5,
-        y: (ball3d.position.z / 2.74) + 0.5,
+        x: ball3d.position.x,
+        y: (ball3d.position.z / 2.74) + 0.5,  // Normalized Z position
+        z: ball3d.position.y,                  // Height (Y in 3D)
         vx: ball3d.velocity.x,
-        vy: ball3d.velocity.z,
-        visible: ball3d.visible
+        vy: ball3d.velocity.z,                 // Z velocity
+        vz: ball3d.velocity.y,                 // Y velocity (vertical)
+        visible: ball3d.visible,
+        inHitZone: isInOpponentZone            // Pre-computed by physics
       };
+      
       const aiHit = this.ai.update(aiBall, currentTime);
       if (aiHit) {
         this.physics.applyOpponentHit(aiHit.speed, aiHit.angle, aiHit.spin);

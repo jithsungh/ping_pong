@@ -162,9 +162,9 @@ export class Game {
     // Check hit zones
     this.canPlayerHit = this.physics.isInPlayerHitZone();
     
-    // AI opponent
+    // AI opponent (use legacy update for 2D game)
     if (this.phase === 'playing') {
-      const aiHit = this.ai.update(ball, currentTime);
+      const aiHit = this.ai.updateLegacy(ball, currentTime);
       if (aiHit) {
         this.physics.applyOpponentHit(aiHit.speed, aiHit.angle, aiHit.spin);
       }

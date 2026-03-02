@@ -17,9 +17,13 @@ const TABLE = {
 
 const BALL_RADIUS = 0.02;
 const GRAVITY = 9.81;
-const AIR_RESISTANCE = 0.01;
-const BOUNCE_COEFFICIENT = 0.85;
-const SPIN_MAGNUS = 0.3;
+const AIR_RESISTANCE = 0.02;           // Increased for more realistic air drag
+const BOUNCE_COEFFICIENT = 0.8;       // Slightly lower for more realistic energy loss
+const SPIN_MAGNUS = 0.25;
+const MIN_BOUNCE_VELOCITY = 0.3;      // Minimum velocity to bounce (prevents infinite small bounces)
+const FRICTION_COEFFICIENT = 0.4;     // Table friction on bounce
+const VELOCITY_DECAY_THRESHOLD = 0.1; // Below this, ball stops
+const MAX_RALLY_TIME_MS = 30000;      // Maximum rally duration before forcing point end
 
 interface Vector3 {
   x: number;
@@ -37,6 +41,7 @@ interface BallState {
 export class Physics3D {
   private ball: BallState;
   private lastBounceTime = 0;
+  private rallyStartTime = 0;           // Track when rally started
   private playerMissed = false;
   private opponentMissed = false;
   private netHit = false;
@@ -95,6 +100,7 @@ export class Physics3D {
     this.playerMissed = false;
     this.opponentMissed = false;
     this.netHit = false;
+    this.rallyStartTime = performance.now(); // Track rally start
     
     // Position ball above server's side
     const zPos = server === 'player' 
@@ -113,15 +119,26 @@ export class Physics3D {
   
   /**
    * Start a serve with initial velocity
+   * More realistic serve trajectory
    */
   startServe(server: 'player' | 'opponent'): void {
     const direction = server === 'player' ? -1 : 1; // Player serves toward opponent (-Z)
     
-    // Toss the ball up slightly
+    // Realistic serve: toss up, then forward with proper arc
+    const serveSpeed = 3.0 + Math.random() * 0.5; // Slight variation
+    const sideAngle = (Math.random() - 0.5) * 0.4; // Small random side angle
+    
     this.ball.velocity = {
-      x: 0,
-      y: 2.0, // Toss up
-      z: direction * 3.0 // Forward motion
+      x: sideAngle * serveSpeed * 0.3,
+      y: 1.8 + Math.random() * 0.3, // Toss up with slight variation
+      z: direction * serveSpeed  // Forward motion
+    };
+    
+    // Add spin to serve for realism
+    this.ball.spin = {
+      x: (Math.random() - 0.5) * 1.0,
+      y: 0,
+      z: direction * Math.random() * 0.5
     };
   }
   
@@ -129,29 +146,35 @@ export class Physics3D {
    * Apply player hit to ball
    */
   applyPlayerHit(power: number, yaw: number, pitch: number, spin: number): void {
-    // Intent-based mapping (per realistic.md)
-    const POWER_SCALE = 6.0;
-    const ANGLE_SCALE = 0.08;
-    const LIFT_SCALE = 0.05;
-    const SPIN_SCALE = 2.0;
+    // Intent-based mapping - tuned for realistic ping pong
+    const POWER_SCALE = 4.5;       // Reduced for more controllable speed
+    const ANGLE_SCALE = 0.3;       // Increased for better directional control
+    const LIFT_BASE = 1.8;         // Base upward velocity for proper arc over net
+    const LIFT_SCALE = 0.8;        // How much pitch affects lift  
+    const SPIN_SCALE = 1.5;
     
     // Clamp and scale power
-    const shotPower = Math.min(1.0, Math.max(0.2, power)) * POWER_SCALE;
+    const shotPower = Math.min(1.0, Math.max(0.3, power)) * POWER_SCALE;
     
     // Direction: negative Z = toward opponent
     const yawRad = (yaw * Math.PI) / 180;
     const pitchRad = (pitch * Math.PI) / 180;
     
+    // Calculate arc to ensure ball goes over net and lands on opponent's side
+    const forwardSpeed = shotPower * 0.8; // Forward component
+    const sideSpeed = Math.sin(yawRad) * shotPower * ANGLE_SCALE;
+    const upSpeed = LIFT_BASE + Math.sin(pitchRad) * LIFT_SCALE + (power * 0.3);
+    
     this.ball.velocity = {
-      x: Math.sin(yawRad) * shotPower * ANGLE_SCALE * shotPower,
-      y: 1.5 + pitchRad * LIFT_SCALE * shotPower, // Arc over net
-      z: -shotPower // Toward opponent
+      x: sideSpeed,
+      y: upSpeed,
+      z: -forwardSpeed // Toward opponent
     };
     
     this.ball.spin = {
       x: spin * SPIN_SCALE,
-      y: yaw * 0.1,
-      z: 0
+      y: yaw * 0.05,
+      z: -spin * 0.5 // Forward spin affects trajectory
     };
   }
   
@@ -159,20 +182,25 @@ export class Physics3D {
    * Apply opponent hit to ball
    */
   applyOpponentHit(power: number, angle: number, spin: number): void {
-    const POWER_SCALE = 5.0;
-    const shotPower = Math.min(1.0, Math.max(0.3, power)) * POWER_SCALE;
+    const POWER_SCALE = 4.0;  // Slightly lower than player for balance
+    const shotPower = Math.min(1.0, Math.max(0.4, power)) * POWER_SCALE;
     const angleRad = (angle * Math.PI) / 180;
     
+    // Calculate realistic arc toward player
+    const forwardSpeed = shotPower * 0.85;
+    const sideSpeed = Math.sin(angleRad) * shotPower * 0.35;
+    const upSpeed = 1.6 + Math.random() * 0.4 + (power * 0.3); // Good arc over net
+    
     this.ball.velocity = {
-      x: Math.sin(angleRad) * shotPower * 0.3,
-      y: 1.2 + Math.random() * 0.3,
-      z: shotPower // Toward player (+Z)
+      x: sideSpeed,
+      y: upSpeed,
+      z: forwardSpeed // Toward player (+Z)
     };
     
     this.ball.spin = {
-      x: spin * 1.5,
-      y: -angle * 0.05,
-      z: 0
+      x: spin * 1.2,
+      y: -angle * 0.03,
+      z: spin * 0.4
     };
   }
   
@@ -182,22 +210,32 @@ export class Physics3D {
   update(deltaTime: number): void {
     if (!this.ball.visible) return;
     
+    // Clamp delta time for stability (prevents physics explosion on lag)
+    const dt = Math.min(deltaTime, 0.05);
+    
     // Apply gravity
-    this.ball.velocity.y -= GRAVITY * deltaTime;
+    this.ball.velocity.y -= GRAVITY * dt;
     
-    // Apply air resistance
-    this.ball.velocity.x *= (1 - AIR_RESISTANCE);
-    this.ball.velocity.y *= (1 - AIR_RESISTANCE * 0.5);
-    this.ball.velocity.z *= (1 - AIR_RESISTANCE);
+    // Apply air resistance (time-based for framerate independence)
+    const airDrag = Math.exp(-AIR_RESISTANCE * dt * 60); // Normalized to ~60fps
+    this.ball.velocity.x *= airDrag;
+    this.ball.velocity.y *= Math.exp(-AIR_RESISTANCE * 0.5 * dt * 60);
+    this.ball.velocity.z *= airDrag;
     
-    // Apply Magnus effect (spin curves)
-    this.ball.velocity.x += this.ball.spin.y * SPIN_MAGNUS * deltaTime;
-    this.ball.velocity.z += this.ball.spin.x * SPIN_MAGNUS * deltaTime;
+    // Apply Magnus effect (spin curves the ball)
+    this.ball.velocity.x += this.ball.spin.y * SPIN_MAGNUS * dt;
+    this.ball.velocity.z += this.ball.spin.x * SPIN_MAGNUS * dt;
+    
+    // Spin decays over time due to air resistance
+    const spinDecay = Math.exp(-0.5 * dt);
+    this.ball.spin.x *= spinDecay;
+    this.ball.spin.y *= spinDecay;
+    this.ball.spin.z *= spinDecay;
     
     // Update position
-    this.ball.position.x += this.ball.velocity.x * deltaTime;
-    this.ball.position.y += this.ball.velocity.y * deltaTime;
-    this.ball.position.z += this.ball.velocity.z * deltaTime;
+    this.ball.position.x += this.ball.velocity.x * dt;
+    this.ball.position.y += this.ball.velocity.y * dt;
+    this.ball.position.z += this.ball.velocity.z * dt;
     
     // Check collisions
     this.checkTableCollision();
@@ -215,14 +253,30 @@ export class Physics3D {
         
         // Bounce!
         this.ball.position.y = TABLE.height + BALL_RADIUS;
-        this.ball.velocity.y = -this.ball.velocity.y * BOUNCE_COEFFICIENT;
+        
+        // Only bounce if velocity is above threshold, otherwise stop
+        if (Math.abs(this.ball.velocity.y) < MIN_BOUNCE_VELOCITY) {
+          // Ball has lost too much energy - it rolls/stops
+          this.ball.velocity.y = 0;
+          // Apply strong friction to horizontal velocity
+          this.ball.velocity.x *= 0.5;
+          this.ball.velocity.z *= 0.5;
+        } else {
+          this.ball.velocity.y = -this.ball.velocity.y * BOUNCE_COEFFICIENT;
+        }
+        
+        // Apply table friction to horizontal velocity
+        this.ball.velocity.x *= (1 - FRICTION_COEFFICIENT * 0.3);
+        this.ball.velocity.z *= (1 - FRICTION_COEFFICIENT * 0.2);
         
         // Transfer some spin to velocity on bounce
-        this.ball.velocity.x += this.ball.spin.x * 0.1;
+        this.ball.velocity.x += this.ball.spin.x * 0.08;
+        this.ball.velocity.z += this.ball.spin.z * 0.05;
         
         // Reduce spin on bounce
-        this.ball.spin.x *= 0.7;
-        this.ball.spin.y *= 0.7;
+        this.ball.spin.x *= 0.6;
+        this.ball.spin.y *= 0.6;
+        this.ball.spin.z *= 0.6;
         
         this.lastBounceTime = performance.now();
         
@@ -231,8 +285,20 @@ export class Physics3D {
       }
     }
     
-    // Ball fell below floor
+    // Ball fell below floor or stopped on table
     if (this.ball.position.y < 0) {
+      this.determinePointWinner();
+    }
+    
+    // Ball stopped on table (rolling to a halt)
+    const totalVelocity = Math.sqrt(
+      this.ball.velocity.x ** 2 + 
+      this.ball.velocity.y ** 2 + 
+      this.ball.velocity.z ** 2
+    );
+    if (this.ball.position.y <= TABLE.height + BALL_RADIUS + 0.01 && 
+        totalVelocity < VELOCITY_DECAY_THRESHOLD) {
+      // Ball has essentially stopped on the table
       this.determinePointWinner();
     }
   }
@@ -273,6 +339,18 @@ export class Physics3D {
     if (Math.abs(this.ball.position.x) > TABLE.width + 1) {
       this.determinePointWinner();
     }
+    
+    // Rally timeout - prevent infinite rallies
+    if (this.rallyStartTime > 0 && 
+        performance.now() - this.rallyStartTime > MAX_RALLY_TIME_MS) {
+      // Force point end - whoever had it last loses
+      // Determine based on ball position
+      if (this.ball.position.z > 0) {
+        this.playerMissed = true;
+      } else {
+        this.opponentMissed = true;
+      }
+    }
   }
   
   private determinePointWinner(): void {
@@ -285,28 +363,38 @@ export class Physics3D {
   
   /**
    * Check if ball is in player's hit zone
+   * Expanded for better player experience
    */
   isInPlayerHitZone(): boolean {
-    const hitZoneStart = TABLE.length / 2 - 0.5;
-    const hitZoneEnd = TABLE.length / 2 + 0.2;
+    const hitZoneStart = TABLE.length / 2 - 0.8;  // Extended toward center
+    const hitZoneEnd = TABLE.length / 2 + 0.3;    // Extended past table edge
+    
+    // Ball must be heading toward player (positive Z velocity) or just arrived
+    const isApproaching = this.ball.velocity.z > -0.5;
     
     return this.ball.position.z >= hitZoneStart &&
            this.ball.position.z <= hitZoneEnd &&
-           this.ball.position.y >= TABLE.height &&
-           this.ball.position.y <= TABLE.height + 0.5;
+           this.ball.position.y >= TABLE.height - 0.1 &&
+           this.ball.position.y <= TABLE.height + 0.6 &&
+           isApproaching;
   }
   
   /**
    * Check if ball is in opponent's hit zone
+   * Expanded zone for more reliable AI hits
    */
   isInOpponentHitZone(): boolean {
-    const hitZoneStart = -TABLE.length / 2 + 0.5;
-    const hitZoneEnd = -TABLE.length / 2 - 0.2;
+    const hitZoneStart = -TABLE.length / 2 + 0.8;  // Extended toward center
+    const hitZoneEnd = -TABLE.length / 2 - 0.3;    // Extended past table edge
+    
+    // Ball must be heading toward opponent (negative Z velocity) or just arrived
+    const isApproaching = this.ball.velocity.z < 0.5; // Allow slight positive (just hit)
     
     return this.ball.position.z <= hitZoneStart &&
            this.ball.position.z >= hitZoneEnd &&
-           this.ball.position.y >= TABLE.height &&
-           this.ball.position.y <= TABLE.height + 0.5;
+           this.ball.position.y >= TABLE.height - 0.1 && // Allow slightly below table height
+           this.ball.position.y <= TABLE.height + 0.6 && // Extended height range
+           isApproaching;
   }
   
   isPlayerMiss(): boolean {
